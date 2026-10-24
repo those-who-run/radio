@@ -6,8 +6,10 @@ It is written in Python, as Piper and Discord voice need, and speaks as
 a second bot beside v1's.
 
 Issues are off in this repository. Every issue, the roadmap and the decisions
-(ADRs) live in [those-who-run/paddock](https://github.com/those-who-run/paddock). A pull request here closes
-its paddock issue with `Closes those-who-run/paddock#N.`
+(ADRs) live in [those-who-run/paddock](https://github.com/those-who-run/paddock). A pull request here
+names its paddock issue: `Closes those-who-run/paddock#N.` when it meets every
+acceptance criterion, `Part of those-who-run/paddock#N` otherwise
+([`AGENTS.md`](AGENTS.md)).
 
 ## Checks
 
