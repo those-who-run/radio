@@ -43,4 +43,4 @@ jobs:
   checks:
     permissions:
       contents: read
-    uses: those-who-run/.github/.github/workflows/checks.yml@3f878d3f5b7356e3db46dafc977b2046b44f24b3 # v0.2.1
+    uses: those-who-run/.github/.github/workflows/checks.yml@6328457b1a763ee250f4326023ee0a5db0ab78cb # v0.2.8
