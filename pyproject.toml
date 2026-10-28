@@ -1,0 +1,66 @@
+[project]
+name = "radio"
+# release-please moves the version once radio releases.
+version = "0.0.0"
+description = "The voice engineer of Those Who Run v2: callouts from NATS spoken in Discord"
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.15"
+dependencies = [
+  "nats-py==2.16.0", # the NATS client (paddock#55: the stable one, asyncio)
+]
+
+[project.scripts]
+radio = "radio.__main__:main"
+
+# The tools `make check` and CI's `python / check` run (those-who-run/.github's
+# python.yml), at the versions uv.lock pins.
+[dependency-groups]
+dev = [
+  "coverage>=7.17",
+  "mypy>=2.4",
+  "pytest>=9.2",
+  "pytest-asyncio>=1.4",
+  "ruff>=0.17",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py315"
+# The package and its tests. The scripts in scripts/ and the unittest tests beside
+# them in tests/ are copies from paddock and .github, kept as they are there.
+include = ["src/**/*.py", "tests/unit/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+files = ["src", "tests/unit"]
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# An expected failure that passes fails the run; a skip fails it in `make check`.
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["src/radio"]
+branch = true
+
+[tool.coverage.report]
+# The floor `make check` enforces, and the coverage-floor ci.yml passes to
+# python.yml. Raise it as coverage climbs; never lower it.
+fail_under = 90
+show_missing = true
+skip_covered = true

@@ -1,9 +1,11 @@
 name: CI
 
-# Two jobs are required by name on `main`: `test`, the repository's own checks, and
+# Three jobs are required by name on `main` once scripts/repos.json in
+# those-who-run/.github lists the third: `test`, the repository's own checks,
 # `checks / checks`, the language-neutral checks every repository runs, from
-# checks.yml in those-who-run/.github. Renaming either leaves `main` waiting for a
-# check that never reports.
+# checks.yml in those-who-run/.github, and `python / check`, the Python checks, from
+# python.yml there. Renaming any leaves `main` waiting for a check that never
+# reports.
 #
 # merge_group runs them again on what a merge queue would land, the PR merged onto
 # `main` and the PRs ahead of it; a queue whose required checks never report there
@@ -52,3 +54,14 @@ jobs:
     permissions:
       contents: read
     uses: those-who-run/.github/.github/workflows/checks.yml@85d7d1f436817a6f52787b032f4ab9b3115eb4bd # v0.2.13
+
+  # uv.lock up to date, the install from it, ruff format and check, mypy, and the
+  # tests with no skips and the coverage floor, as `make python` runs them. The
+  # floor is the Makefile's COVERAGE_FLOOR and pyproject.toml's fail_under too
+  # (tests/test_python_floor.py keeps the three equal).
+  python:
+    permissions:
+      contents: read
+    uses: those-who-run/.github/.github/workflows/python.yml@d19d696cac98c5c687a54497e6a13fbc392fa5f1 # feat/python-workflow (those-who-run/.github#58); moves to its release tag before this merges
+    with:
+      coverage-floor: 90
