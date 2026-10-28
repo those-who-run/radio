@@ -1,5 +1,4 @@
-"""The tests' fixtures, and the rule that a skipped test fails the run, as in v1 and
-as CI's `python / check` has it."""
+"""The tests' fixtures and plugins."""
 
 from __future__ import annotations
 
@@ -12,23 +11,9 @@ from helpers import FakeNATS
 
 from radio import logs
 
-_skipped: list[str] = []
-
-
-def pytest_runtest_logreport(report: pytest.TestReport) -> None:
-    # An expected failure (xfail) reports as skipped too, and counts the same.
-    if report.skipped:
-        _skipped.append(report.nodeid)
-
-
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    if _skipped and exitstatus == pytest.ExitCode.OK:
-        session.exitstatus = pytest.ExitCode.TESTS_FAILED
-
-
-def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
-    for nodeid in _skipped:
-        terminalreporter.write_line(f"skipped, which fails the run: {nodeid}", red=True)
+# noskip: a skipped test fails the run. pytester: runs pytest inside a test, for
+# noskip's own tests.
+pytest_plugins = ["noskip", "pytester"]
 
 
 @pytest.fixture

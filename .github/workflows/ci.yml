@@ -62,6 +62,6 @@ jobs:
   python:
     permissions:
       contents: read
-    uses: those-who-run/.github/.github/workflows/python.yml@d19d696cac98c5c687a54497e6a13fbc392fa5f1 # feat/python-workflow (those-who-run/.github#58); moves to its release tag before this merges
+    uses: those-who-run/.github/.github/workflows/python.yml@349de99deb2006c2dd302f60cd29ecf18ec2eeb4 # feat/python-workflow (those-who-run/.github#58); moves to its release tag before this merges
     with:
       coverage-floor: 90

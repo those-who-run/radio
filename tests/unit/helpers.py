@@ -12,17 +12,19 @@ class FakeNATS:
     """Enough of a NATS server for a client to connect, ping and drain: it sends
     INFO, answers each PING with PONG and ignores the rest."""
 
-    def __init__(self) -> None:
+    def __init__(self, port: int = 0) -> None:
+        # 0 picks a free port; a port given starts a server where one stopped.
+        self.port = port
         self.server: asyncio.Server | None = None
         self.clients: list[asyncio.StreamWriter] = []
 
     @property
     def url(self) -> str:
-        assert self.server is not None
-        return f"nats://127.0.0.1:{self.server.sockets[0].getsockname()[1]}"
+        return f"nats://127.0.0.1:{self.port}"
 
     async def start(self) -> None:
-        self.server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
+        self.server = await asyncio.start_server(self._handle, "127.0.0.1", self.port)
+        self.port = self.server.sockets[0].getsockname()[1]
 
     async def close(self) -> None:
         assert self.server is not None

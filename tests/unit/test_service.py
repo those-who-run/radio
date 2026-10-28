@@ -44,42 +44,95 @@ async def test_connects_logs_ready_and_stops_cleanly(fake_nats: FakeNATS, log: i
 
 
 async def test_retries_until_nats_is_up(log: io.StringIO, monkeypatch: pytest.MonkeyPatch) -> None:
+    # AC2: NATS that starts after radio. Until it does, /healthz says not connected.
     monkeypatch.setattr(service, "RETRY_WAIT", 0.02)
-    nats_server = FakeNATS()
-    await nats_server.start()
-    url = nats_server.url
-    await nats_server.close()  # Nothing listens there now.
-    r = radio(url, log)
+    gone = FakeNATS()
+    await gone.start()
+    await gone.close()  # Nothing listens on its port now.
+    r = radio(gone.url, log)
     stop = asyncio.Event()
     task = asyncio.create_task(r.run(stop))
     await until(lambda: msgs(log).count("nats error") >= 2)
-    assert (await get(r.health.port))[1]["connected"] is False
-    stop.set()
-    await asyncio.wait_for(task, 10)
     assert "ready" not in msgs(log)
+    assert (await get(r.health.port)) == (
+        503,
+        {"status": "unavailable", "version": "1.2.3", "connected": False},
+    )
+    late = FakeNATS(gone.port)
+    await late.start()
+    try:
+        await until(lambda: "ready" in msgs(log))
+        assert (await get(r.health.port)) == (
+            200,
+            {"status": "ok", "version": "1.2.3", "connected": True},
+        )
+        stop.set()
+        await asyncio.wait_for(task, 10)
+    finally:
+        await late.close()
     assert msgs(log)[-1] == "stopped"
 
 
-async def test_reconnect_and_a_failed_drain_are_logged(
-    fake_nats: FakeNATS, log: io.StringIO
+async def test_stops_while_still_retrying(
+    log: io.StringIO, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(service, "RETRY_WAIT", 0.02)
+    gone = FakeNATS()
+    await gone.start()
+    await gone.close()
+    r = radio(gone.url, log)
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+    await until(lambda: "nats error" in msgs(log))
+    stop.set()
+    await asyncio.wait_for(task, 10)
+    assert "ready" not in msgs(log)
+    assert "nats disconnected" not in msgs(log)
+    assert msgs(log)[-2:] == ["shutting down", "stopped"]
+
+
+async def test_reconnects_after_nats_restarts(
+    fake_nats: FakeNATS, log: io.StringIO, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(service, "RETRY_WAIT", 0.02)
     r = radio(fake_nats.url, log)
     stop = asyncio.Event()
     task = asyncio.create_task(r.run(stop))
     await until(lambda: "ready" in msgs(log))
-    await r._reconnected()
-    await r._error(RuntimeError("slow consumer"))
-
-    async def broken_drain() -> None:
-        raise ConnectionError
-
-    assert r.nc is not None
-    r.nc.drain = broken_drain  # type: ignore[method-assign]
     await fake_nats.close()
     await until(lambda: "nats disconnected" in msgs(log))
-    stop.set()
-    await asyncio.wait_for(task, 10)
-    assert {"nats reconnected", "nats error", "nats drain"} <= set(msgs(log))
+    assert (await get(r.health.port))[0] == 503
+    again = FakeNATS(fake_nats.port)
+    await again.start()
+    try:
+        await until(lambda: "nats reconnected" in msgs(log))
+        assert (await get(r.health.port)) == (
+            200,
+            {"status": "ok", "version": "1.2.3", "connected": True},
+        )
+
+        # A drain that fails at shutdown is logged, and the connection closed anyway.
+        async def broken_drain() -> None:
+            raise ConnectionError
+
+        assert r.nc is not None
+        r.nc.drain = broken_drain  # type: ignore[method-assign]
+        stop.set()
+        await asyncio.wait_for(task, 10)
+    finally:
+        await again.close()
+    assert "nats drain" in msgs(log)
+    assert r.nc.is_closed
+    assert msgs(log)[-1] == "stopped"
+
+
+async def test_an_error_is_logged_without_credentials(log: io.StringIO) -> None:
+    r = radio("nats://u:p@nats:4222", log)
+    await r._error(RuntimeError("slow consumer"))
+    [line] = lines(log)
+    assert line["msg"] == "nats error"
+    assert line["nats"] == "nats:4222"
+    assert line["err"] == "slow consumer"
 
 
 def test_redacted() -> None:
