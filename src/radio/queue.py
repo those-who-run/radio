@@ -6,8 +6,9 @@ in-process ones: a callout waits until its `hold_until`, and one past its
 created_at, seq)`, with the subject's level in front: p0 before p1 before p2, then
 the numeric priority, then the age, then the order the stream holds them in.
 
-The times are compared with `clock()`, UTC now live (paddock#56 R8), so a replay
-on a virtual clock (paddock#60) passes its own.
+The times are compared with `clock()`, UTC now live (paddock#56 R8). A replay on
+its own clock (radio.timing, paddock#60) pops at the time it has reached, and a
+callout created after that time isn't there yet.
 """
 
 from __future__ import annotations
@@ -19,10 +20,13 @@ import itertools
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from twr.events.v1 import callout_pb2
 from twr_contracts.callout import LEVELS, Level
+
+if TYPE_CHECKING:
+    from radio.engineer import Engineer
 
 Clock = Callable[[], datetime]
 
@@ -65,6 +69,10 @@ class Pending:
     # The latest delivery: a redelivery replaces it.
     delivery: Delivery
     text: str = ""
+    # Who says it, chosen for its session when it was phrased.
+    engineer: Engineer | None = None
+    # When it was queued, on the clock radio speaks by.
+    queued: datetime | None = None
     created_at: datetime = field(init=False)
     expires_at: datetime | None = field(init=False)
     hold_until: datetime | None = field(init=False)
@@ -80,6 +88,12 @@ class Pending:
 
     def due(self, now: datetime) -> bool:
         return self.hold_until is None or self.hold_until <= now
+
+    def ready_at(self) -> datetime:
+        """The earliest it can be said: created, and its hold over."""
+        if self.hold_until is None or self.hold_until < self.created_at:
+            return self.created_at
+        return self.hold_until
 
     def left(self, now: datetime) -> float | None:
         """Seconds until it goes stale, None for never."""
@@ -110,15 +124,21 @@ class CalloutQueue:
         heapq.heappush(self._heap, (*key, p))
         self._wake.set()
 
-    def pop(self, now: datetime) -> tuple[Pending | None, list[Pending]]:
+    def pop(
+        self, now: datetime, replay: bool = False, expire: bool = True
+    ) -> tuple[Pending | None, list[Pending]]:
         """The most urgent callout that is due and not stale, and the stale ones it
-        took out on the way. Callouts still held stay queued."""
+        took out on the way. Callouts still held stay queued. On a replay's clock,
+        one created after now stays queued too; expire False keeps the stale ones
+        (instant timing)."""
         waiting, stale = [], []
         found = None
         while self._heap:
             item = heapq.heappop(self._heap)
             p = item[-1]
-            if p.stale(now):
+            if replay and p.created_at > now:
+                waiting.append(item)
+            elif expire and p.stale(now):
                 stale.append(p)
             elif not p.due(now):
                 waiting.append(item)
@@ -128,6 +148,15 @@ class CalloutQueue:
         for item in waiting:
             heapq.heappush(self._heap, item)
         return found, stale
+
+    def next_at(self) -> datetime | None:
+        """The earliest time a queued callout can be said, None for an empty queue."""
+        return min((item[-1].ready_at() for item in self._heap), default=None)
+
+    async def wait(self) -> None:
+        """Wait for the next push."""
+        self._wake.clear()
+        await self._wake.wait()
 
     async def get(self, clock: Clock = utc_now) -> Pending:
         """Wait for the callout `pop` returns next, dropping the stale ones on the

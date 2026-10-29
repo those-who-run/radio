@@ -1,25 +1,42 @@
 import asyncio
 import io
+import json
 import logging
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
-from helpers import FakeNATS, get, lines, until
+from helpers import FakeNATS, FakeVoice, get, lines, until
 from nats.js.client import JetStreamContext
 from natsserver import NATSServer
 from test_callouts import made, publish
 
 from radio import callouts, service
 from radio.phrasing import templates
+from radio.piper_voice import Voices
 from radio.service import Radio, redacted
-from radio.settings import Settings
+from radio.settings import Settings, from_env
 
 
-def radio(url: str, log: io.StringIO, src: str = "live") -> Radio:
-    """A Radio on url, logging to log (the fixture's lines), its /healthz on a free port."""
+def fake_voices(settings: Settings, logger: logging.Logger) -> Voices:
+    return Voices(settings, logger, lambda model, voice: FakeVoice())
+
+
+def radio(
+    url: str,
+    log: io.StringIO,
+    src: str = "live",
+    out: io.StringIO | None = None,
+    **settings: object,
+) -> Radio:
+    """A Radio on url, logging to log (the fixture's lines), its /healthz on a free
+    port, its console lines to out, with a fake voice."""
     return Radio(
-        Settings(nats_url=url, health_host="127.0.0.1", health_port=0, src=src),
+        Settings(nats_url=url, health_host="127.0.0.1", health_port=0, src=src, **settings),  # type: ignore[arg-type]
         "1.2.3",
         logging.getLogger("radio"),
+        out or io.StringIO(),
+        fake_voices,
     )
 
 
@@ -143,22 +160,82 @@ def test_redacted() -> None:
     assert redacted("nats://u:p@a:4222, nats://b:4222") == "a:4222,nats://b:4222"
 
 
-async def test_speaks_the_sources_callouts(
+async def test_speaks_the_sources_callouts_to_the_console(
     nats_server: NATSServer, js: JetStreamContext, log: io.StringIO
 ) -> None:
-    r = radio(nats_server.url, log, src="svc")
+    out = io.StringIO()
+    r = radio(nats_server.url, log, src="svc", out=out)
     stop = asyncio.Event()
     task = asyncio.create_task(r.run(stop))
     await until(lambda: "callouts: taking" in msgs(log))
-    await publish(js, made("final_lap", "template", 10), src="svc")
-    await until(lambda: "speaking" in msgs(log))
-    [said] = [x for x in lines(log) if x["msg"] == "speaking"]
+    m = made("final_lap", "template", 10)
+    await publish(js, m, src="svc")
+    await until(lambda: bool(out.getvalue()))
+    [said] = out.getvalue().splitlines()
     # Phrased with the script, which has variants.
-    assert (said["rule"], said["kind"]) == ("final_lap", "template")
-    assert said["text"] in templates()["final_lap"]["template"]
+    assert said.split("] ", 1)[1].startswith("(final_lap) ")
+    assert said.endswith(f"  kind=template id={m.id}")
+    assert said.split("(final_lap) ")[1].split("  kind=")[0] in templates()["final_lap"]["template"]
     stop.set()
     await asyncio.wait_for(task, 10)
     assert msgs(log)[-1] == "stopped"
+
+
+async def test_speaks_to_wav_files_with_a_timeline(
+    nats_server: NATSServer, js: JetStreamContext, log: io.StringIO, tmp_path: Path
+) -> None:
+    # R1, R5: the wav sink, instant on the replay's clock, and the timeline file.
+    timeline = tmp_path / "timeline.jsonl"
+    r = radio(
+        nats_server.url,
+        log,
+        src="wavs",
+        sink="wav",
+        wav_dir=tmp_path / "wav",
+        timing="instant",
+        timeline_file=timeline,
+        cache_dir=tmp_path / "cache",
+        voice_model=tmp_path / "fake.onnx",
+    )
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+    await until(lambda: "callouts: taking" in msgs(log))
+    await publish(js, made("final_lap", "template", 10), src="wavs")
+    # A later callout takes the replay past the first.
+    await publish(js, made("fuel", "template_pit", 15, created=later(5)), src="wavs")
+    await until(lambda: len(list((tmp_path / "wav").glob("*.wav"))) == 1)
+    assert [p.name for p in (tmp_path / "wav").iterdir()] == ["001-final_lap.wav"]
+    stop.set()
+    await asyncio.wait_for(task, 10)
+    [entry] = [json.loads(x) for x in timeline.read_text().splitlines()]
+    assert (entry["rule"], entry["outcome"], entry["engineer"]) == ("final_lap", "spoken", "v1")
+
+
+def later(seconds: float) -> datetime:
+    return datetime.now(UTC) + timedelta(seconds=seconds)
+
+
+async def test_console_mode_starts_with_no_discord_settings(
+    nats_server: NATSServer, js: JetStreamContext, log: io.StringIO, tmp_path: Path
+) -> None:
+    # AC6, R6: the console sink, from settings with no DISCORD_* variable, starts
+    # and speaks.
+    environ = {
+        "HOME": str(tmp_path),
+        "TWR_NATS_URL": nats_server.url,
+        "TWR_HEALTH_ADDR": "127.0.0.1:0",
+        "TWR_RADIO_SINK": "console",
+        "TWR_RADIO_SRC": "nodiscord",
+    }
+    out = io.StringIO()
+    r = Radio(from_env(environ), "1.2.3", logging.getLogger("radio"), out)
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+    await until(lambda: "callouts: taking" in msgs(log))
+    await publish(js, made("final_lap", "template", 10), src="nodiscord")
+    await until(lambda: "(final_lap)" in out.getvalue())
+    stop.set()
+    await asyncio.wait_for(task, 10)
 
 
 async def test_callouts_that_fail_stop_radio(

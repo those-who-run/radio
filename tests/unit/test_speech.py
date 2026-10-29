@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from helpers import RATE, FakeVoice, frames, write_wav
 
+from radio import speech
 from radio.speech import (
     DEFAULT_CACHE_MAX_BYTES,
     STALE_SECS,
@@ -381,3 +382,15 @@ async def test_warm_up_says_its_line_and_keeps_nothing_but_the_cache(tmp_path: P
         s.close()
     assert calls(s) == split_sentences(WARM_UP)
     assert not [f for f in tmp_path.iterdir() if f.name.startswith("joined-")]
+
+
+def test_the_estimate_is_the_letters_the_sentences_and_the_pauses() -> None:
+    # R3: no voice, so a model of the voice's speaking rate.
+    one = 8 / speech.CHARS_PER_SECOND + speech.SENTENCE_SECONDS
+    assert speech.estimate("Final lap.", 0.9, 0.35) == pytest.approx(one)
+    two = 14 / speech.CHARS_PER_SECOND + 2 * speech.SENTENCE_SECONDS
+    assert speech.estimate("Final lap. Box box.", 0.9, 0.35) == pytest.approx(two + 0.35)
+    # Twice the length scale, twice as long to say; the model's own is 1.
+    assert speech.estimate("Final lap.", 1.8, 0) == pytest.approx(2 * one)
+    assert speech.estimate("Final lap.", None, 0) == pytest.approx(one / 0.9)
+    assert speech.estimate("...", 0.9, 0.35) == 0.0

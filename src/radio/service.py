@@ -1,6 +1,6 @@
 """radio's service: serve GET /healthz, connect to NATS, log "ready", take and speak
-the source's callouts (radio.callouts) until it is told to stop, then drain the
-connection and close the server.
+the source's callouts (radio.callouts) through the sink the settings name until it
+is told to stop, then drain the connection and close the server.
 
 NATS may not be up when radio starts, as in a pod whose server starts beside it, so
 the first connection is retried until it succeeds or radio stops, with a `nats
@@ -14,14 +14,19 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import sys
+from collections.abc import Callable
+from typing import IO
 
 from nats.aio.client import Client
 
 from radio.callouts import Callouts
+from radio.engineer import roster
 from radio.health import HealthServer
-from radio.phrases import Phrases
+from radio.piper_voice import Voices
 from radio.settings import Settings
-from radio.sink import LogSink
+from radio.sink import ConsoleSink, WavSink
+from radio.timing import SIMULATED, Timeline
 
 # How long nats-py waits between attempts at a server, at the first connection and
 # after a drop.
@@ -39,9 +44,20 @@ def redacted(urls: str) -> str:
 
 
 class Radio:
-    def __init__(self, settings: Settings, version: str, logger: logging.Logger) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        version: str,
+        logger: logging.Logger,
+        out: IO[str] = sys.stdout,
+        voices: Callable[[Settings, logging.Logger], Voices] = Voices,
+    ) -> None:
         self.settings = settings
         self.logger = logger
+        # Where the console line goes, and how the voices are opened (a fake voice
+        # in the tests).
+        self.out = out
+        self.voices = voices
         self.nc: Client | None = None
         # Whether the first connection was made: before it, a failed attempt is an
         # error, not a disconnect.
@@ -102,22 +118,37 @@ class Radio:
     async def speak(self, stop: asyncio.Event) -> None:
         """Take and speak callouts until stop is set. Callouts that fail stop radio."""
         assert self.nc is not None
+        s = self.settings
+        engineers = roster(s)
+        sink: ConsoleSink
+        if s.sink == "wav":
+            assert s.wav_dir is not None
+            sink = WavSink(self.out, self.voices(s, self.logger), s.wav_dir)
+        elif s.timing == SIMULATED and s.voice_model.exists():
+            # The simulated speaker measures each callout with the voice it has.
+            sink = ConsoleSink(self.out, self.voices(s, self.logger))
+        else:
+            sink = ConsoleSink(self.out)
+        if sink.voices is not None:
+            # Loaded and warm before the first callout (v1's App._startup).
+            await sink.voices.get(engineers.default).warm_up()
+        timeline = Timeline(s.timeline_file)
         callouts = Callouts(
-            self.nc,
-            self.settings.src,
-            Phrases(self.settings.templates),
-            LogSink(self.logger),
-            self.logger,
+            self.nc, s.src, engineers, sink, self.logger, timing=s.timing, timeline=timeline
         )
         speaking = asyncio.ensure_future(callouts.run())
         stopping = asyncio.ensure_future(stop.wait())
-        await asyncio.wait({speaking, stopping}, return_when=asyncio.FIRST_COMPLETED)
-        stopping.cancel()
-        if speaking.done():
-            speaking.result()  # It runs until cancelled, so this raises.
-        speaking.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await speaking
+        try:
+            await asyncio.wait({speaking, stopping}, return_when=asyncio.FIRST_COMPLETED)
+            stopping.cancel()
+            if speaking.done():
+                speaking.result()  # It runs until cancelled, so this raises.
+            speaking.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await speaking
+        finally:
+            timeline.close()
+            await sink.close()
 
     async def run(self, stop: asyncio.Event) -> None:
         """Serve and connect until stop is set, then shut down cleanly."""

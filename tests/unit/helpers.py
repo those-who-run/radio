@@ -1,5 +1,5 @@
-"""What the tests share: a stand-in NATS server, a GET for /healthz, and a fake voice
-with WAV helpers. conftest.py makes fixtures of them."""
+"""What the tests share: a stand-in NATS server, a GET for /healthz, a fake voice
+with WAV helpers, and a running Callouts. conftest.py makes fixtures of them."""
 
 from __future__ import annotations
 
@@ -7,9 +7,16 @@ import asyncio
 import io
 import json
 import wave
+from dataclasses import dataclass
 from pathlib import Path
 
+from nats.aio.client import Client
 from nats.js.api import DiscardPolicy, RetentionPolicy, StorageType, StreamConfig
+
+from radio.callouts import Callouts
+from radio.engineer import Roster, from_settings
+from radio.phrasing import templates
+from radio.settings import Settings
 
 # The CALLOUTS stream as paddock's deploy/nats/streams/callouts.json defines it
 # (paddock#73): every source's callouts, a work queue kept 30 s, 64 MiB at most,
@@ -131,3 +138,23 @@ def write_wav(path: Path, frames: int) -> Path:
 def frames(path: Path) -> bytes:
     with wave.open(str(path), "rb") as w:
         return w.readframes(w.getnframes())
+
+
+def roster(script: bool = False) -> Roster:
+    """v1's engineer, with the built-in phrases (`script: false`) by default."""
+    return Roster([from_settings(Settings(templates=templates(script=script)))])
+
+
+@dataclass
+class Running:
+    """A Callouts the `start` fixture runs."""
+
+    nc: Client
+    callouts: Callouts[str]
+    task: asyncio.Task[None]
+
+    async def kill(self) -> None:
+        """Stop it as a dying process would: nothing acked on the way out."""
+        self.task.cancel()
+        await asyncio.gather(self.task, return_exceptions=True)
+        await self.nc.close()

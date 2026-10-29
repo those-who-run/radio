@@ -35,6 +35,17 @@ once, or dropped if it expired meanwhile.
 radio applies what ecu publishes, the level, priority, `hold_until`, `expires_at`
 and the phrase key, and adds no rules of its own: a callout without `expires_at`
 never goes stale (callout.proto).
+
+Who says it (paddock#60). Each session's callouts are said by one engineer
+(radio.engineer), chosen by the roster when the session's first callout is
+phrased, with a phrasebook of the engineer's seeded by the session's id: a replay
+of a session, with the ids ecu gave it, says the same words. The engineer changes
+how a callout is said, never which callouts are said, nor when.
+
+When (radio.timing). Live, on the wall clock, each callout takes as long as the
+sink takes to play it. A replay's callouts are said on the replay's own clock,
+instantly or by a simulated speaker, and each one's way through radio goes to the
+timeline.
 """
 
 from __future__ import annotations
@@ -42,7 +53,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections import Counter
+from collections import Counter, OrderedDict
+from datetime import datetime
 from typing import Any
 
 from nats.aio.client import Client
@@ -54,9 +66,11 @@ from twr.events.v1 import callout_pb2
 from twr_contracts import callout, ce
 
 from radio.callout import from_message
+from radio.engineer import Engineer, Roster
 from radio.phrases import PhraseError, Phrases, missing
 from radio.queue import (
     CONNECTING,
+    QUEUED,
     SYNTHESIS,
     CalloutQueue,
     Clock,
@@ -65,6 +79,17 @@ from radio.queue import (
     utc_now,
 )
 from radio.sink import Sink
+from radio.timing import (
+    DROPPED,
+    EXPIRED,
+    INSTANT,
+    LIVE,
+    SIMULATED,
+    SPOKEN,
+    ReplayClock,
+    Timeline,
+    later,
+)
 
 # The stream ecu publishes callouts to (contracts' subjects.yaml; paddock#73).
 STREAM = "CALLOUTS"
@@ -88,6 +113,14 @@ REMEMBER = 4096
 # Other stages a callout is dropped at, beside the queue's.
 NOT_CONNECTED = "not connected"
 PHRASING = "phrasing"
+EMPTY = "nothing to say"
+PLAYING = "playing"
+# The stages a stale callout is dropped at: it expired, where the others were
+# dropped.
+STALE = (QUEUED, CONNECTING, SYNTHESIS)
+# How many sessions' phrasebooks radio keeps: a session's callouts after its
+# phrasebook was let go start a fresh one, from the same seed.
+SESSIONS = 16
 
 
 def durable(src: str, level: callout.Level) -> str:
@@ -102,21 +135,31 @@ class Callouts[C]:
         self,
         nc: Client,
         src: str,
-        phrases: Phrases,
+        roster: Roster,
         sink: Sink[C],
         logger: logging.Logger,
         clock: Clock = utc_now,
+        timing: str = LIVE,
+        timeline: Timeline | None = None,
+        replay: ReplayClock | None = None,
     ) -> None:
         self.nc = nc
         self.src = src
-        self.phrases = phrases
+        self.roster = roster
         self.sink = sink
         self.logger = logger
         self.clock = clock
-        self.queue = CalloutQueue(self._drop)
-        # Callouts dropped, by stage, and said.
+        self.timing = timing
+        self.timeline = timeline or Timeline(None)
+        # A replay's clock, for instant and simulated timing.
+        self.replay = replay or ReplayClock()
+        self.queue = CalloutQueue(self._expire)
+        # Callouts dropped, by stage, phrased and said.
         self.dropped: Counter[str] = Counter()
+        self.phrased = 0
         self.said = 0
+        # Each session's engineer and phrasebook, by session id, oldest first.
+        self._sessions: OrderedDict[str, tuple[Engineer, Phrases]] = OrderedDict()
         # The callouts taken and not yet settled, by stream sequence.
         self._held: dict[int, Pending] = {}
         # The stream sequences settled (said or dropped), oldest first.
@@ -129,7 +172,7 @@ class Callouts[C]:
         await self._subscribe()
         async with asyncio.TaskGroup() as tg:
             tg.create_task(self._take())
-            tg.create_task(self._speak())
+            tg.create_task(self._speak() if self.timing == LIVE else self._simulate())
 
     # Taking.
 
@@ -162,7 +205,9 @@ class Callouts[C]:
                 await asyncio.sleep(RETRY_WAIT)
         self._subs = subs
         await self.nc.subscribe(f"twr.v1.{self.src}.callout.*", cb=self._on_publish)
-        self.logger.info("callouts: taking", extra={"src": self.src, "stream": STREAM})
+        self.logger.info(
+            "callouts: taking", extra={"src": self.src, "stream": STREAM, "timing": self.timing}
+        )
 
     async def _on_publish(self, msg: Msg) -> None:
         self._published.set()
@@ -227,6 +272,22 @@ class Callouts[C]:
         p = self._held[seq] = Pending(m, level, seq, msg)
         return p
 
+    def _session(self, session_id: str) -> tuple[Engineer, Phrases]:
+        """The session's engineer and phrasebook, chosen at its first callout."""
+        if (got := self._sessions.get(session_id)) is not None:
+            self._sessions.move_to_end(session_id)
+            return got
+        engineer = self.roster.pick(session_id)
+        # Seeded by the session, so a replay of it says the same words; a callout
+        # outside a session (telemetry between them) is unseeded, as v1 was.
+        got = self._sessions[session_id] = (engineer, engineer.phrases(session_id or None))
+        while len(self._sessions) > SESSIONS:
+            self._sessions.popitem(last=False)
+        self.logger.info(
+            "callouts: engineer", extra={"session_id": session_id, "engineer": engineer.name}
+        )
+        return got
+
     async def _phrase(self, p: Pending) -> None:
         """Phrase it, then queue it; one with nothing to say is settled."""
         view = from_message(p.callout)
@@ -234,17 +295,25 @@ class Callouts[C]:
             self.logger.warning(
                 "callout slot missing", extra={**_about(p), "kind": view.kind, "missing": gaps}
             )
+        self.phrased += 1
+        p.engineer, phrases = self._session(p.callout.session_id)
+        p.queued = self.clock() if self.timing == LIVE else p.created_at
         try:
-            p.text = self.phrases.say(view)
-        except PhraseError as err:
-            self.logger.warning("callout not phrased", extra={**_about(p), "err": str(err)})
-            await self._drop(p, PHRASING)
-            return
-        if not p.text:
-            self.logger.info("nothing to say", extra=_about(p))
-            await self._settle(p)
-            return
-        self.queue.push(p)
+            try:
+                p.text = phrases.say(view)
+            except PhraseError as err:
+                self.logger.warning("callout not phrased", extra={**_about(p), "err": str(err)})
+                await self._drop(p, PHRASING, p.queued)
+                return
+            if not p.text:
+                self.logger.info("nothing to say", extra=_about(p))
+                self.timeline.write(p, DROPPED, EMPTY)
+                await self._settle(p)
+                return
+            self.queue.push(p)
+        finally:
+            # Queued or not, it says the replay has reached its time.
+            self.replay.saw(p.created_at)
 
     # Speaking.
 
@@ -253,45 +322,90 @@ class Callouts[C]:
             p = await self.queue.get(self.clock)
             await self._say(p)
 
-    async def _say(self, p: Pending) -> None:
+    async def _simulate(self) -> None:
+        """Speak on the replay's clock: decide at time t only once the replay is
+        past it, so every callout created by then is queued, whatever the speed of
+        the replay. at is when the speaker is next free."""
+        at: datetime | None = None
+        while True:
+            ready = self.queue.next_at()
+            if ready is None:
+                await self.queue.wait()
+                continue
+            t = ready if at is None or ready > at else at
+            if not self.replay.past(t):
+                await self.replay.wait(t)
+                continue
+            found, stale = self.queue.pop(t, replay=True, expire=self.timing != INSTANT)
+            for p in stale:
+                await self._drop(p, QUEUED, t)
+            at = t
+            if found is not None:
+                at = await self._say(found, t) or t
+
+    async def _say(self, p: Pending, at: datetime | None = None) -> datetime | None:
+        """Say p. at is the replay's time it starts at, and then the time the
+        speaker is free again is returned; None live."""
+        now = self.clock if at is None else _fixed(at)
+        finished = at
         try:
-            if not await self._connect(p):
-                return
-            clip = await self.sink.prepare(p.text)
+            if not await self._connect(p, now):
+                return finished
+            clip = await self.sink.prepare(p)
             if clip is None:
                 self.logger.info("nothing to say", extra=_about(p))
-                return
+                self.timeline.write(p, DROPPED, EMPTY)
+                return finished
             try:
-                if p.stale(self.clock()):
-                    await self._drop(p, SYNTHESIS)
-                    return
+                if self._stale(p, now()):
+                    await self._drop(p, SYNTHESIS, now())
+                    return finished
+                started = now()
                 await self._settle(p, sync=True)
                 await self.sink.play(clip, p)
+                if at is not None:
+                    # The simulated speaker holds the channel for the clip; instant
+                    # takes no time.
+                    held = self.sink.seconds(clip) if self.timing == SIMULATED else 0.0
+                    finished = later(at, held)
                 self.said += 1
+                self.timeline.write(p, SPOKEN, None, started, finished or self.clock())
             finally:
                 self.sink.release(clip)
         except Exception:
             self.logger.exception("callout failed to play", extra=_about(p))
+            self.timeline.write(p, DROPPED, PLAYING)
         finally:
             await self._settle(p)
+        return finished
 
-    async def _connect(self, p: Pending) -> bool:
+    async def _connect(self, p: Pending, now: Clock) -> bool:
         """Wait for the sink until the callout goes stale; False if it was dropped."""
         try:
-            ready = await asyncio.wait_for(self.sink.connect(), p.left(self.clock()))
+            left = None if self.timing == INSTANT else p.left(now())
+            ready = await asyncio.wait_for(self.sink.connect(), left)
         except TimeoutError:
             ready = False
-        if p.stale(self.clock()):
-            await self._drop(p, CONNECTING)
+        if self._stale(p, now()):
+            await self._drop(p, CONNECTING, now())
             return False
         if not ready:
-            await self._drop(p, NOT_CONNECTED)
+            await self._drop(p, NOT_CONNECTED, now())
             return False
         return True
 
-    async def _drop(self, p: Pending, stage: str) -> None:
+    def _stale(self, p: Pending, now: datetime) -> bool:
+        """Past its expires_at: never, in instant timing."""
+        return self.timing != INSTANT and p.stale(now)
+
+    async def _expire(self, p: Pending, stage: str) -> None:
+        """The queue's drop, live."""
+        await self._drop(p, stage, self.clock())
+
+    async def _drop(self, p: Pending, stage: str, at: datetime | None = None) -> None:
         self.dropped[stage] += 1
         self.logger.warning("callout dropped", extra={**_about(p), "stage": stage})
+        self.timeline.write(p, EXPIRED if stage in STALE else DROPPED, stage, dropped=at)
         await self._settle(p)
 
     async def _settle(self, p: Pending, sync: bool = False) -> None:
@@ -307,6 +421,10 @@ class Callouts[C]:
         self._settled[seq] = None
         while len(self._settled) > REMEMBER:
             del self._settled[next(iter(self._settled))]
+
+
+def _fixed(t: datetime) -> Clock:
+    return lambda: t
 
 
 def _about(p: Pending) -> dict[str, Any]:

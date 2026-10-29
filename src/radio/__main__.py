@@ -46,7 +46,7 @@ def main(
         return 2
     logger = logs.setup(settings.log_level, settings.log_format, stdout)
     try:
-        asyncio.run(_serve(Radio(settings, __version__, logger), stop))
+        asyncio.run(_serve(Radio(settings, __version__, logger, stdout), stop))
     except Exception:
         logger.exception("stopped")
         return 1

@@ -7,18 +7,14 @@ from __future__ import annotations
 import asyncio
 import io
 import json
-import logging
-from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import nats
 import pytest
 from google.protobuf import json_format
-from helpers import lines, until
-from nats.aio.client import Client
+from helpers import lines, roster, until
 from nats.js.client import JetStreamContext
 from natsserver import NATSServer
 from twr.events.v1 import callout_pb2
@@ -26,10 +22,11 @@ from twr_contracts import callout, ce
 
 from radio import callouts
 from radio.callout import from_message
-from radio.callouts import Callouts
+from radio.engineer import Engineer, Roster
 from radio.phrases import Phrases
 from radio.phrasing import templates
 from radio.queue import Pending
+from radio.voice import VoiceSettings
 
 CONTRACTS = Path(__file__).parent / "testdata" / "contracts"
 SRC = "test"
@@ -44,6 +41,7 @@ def made(
     *,
     at: int = 0,
     run_id: str = "01RUN",
+    session: str = "",
     slots: dict[str, Any] | None = None,
     text: str = "",
     created: datetime | None = None,
@@ -56,6 +54,7 @@ def made(
         id=f"c{next(_ids)}", rule=rule, kind=kind, text=text, priority=priority, at=at
     )
     m.run_id = run_id
+    m.session_id = session
     if slots:
         json_format.ParseDict(slots, m.slots)
     m.created_at.FromDatetime(created)
@@ -108,9 +107,12 @@ class Recorder:
         await self.connected.wait()
         return self.can_connect
 
-    async def prepare(self, text: str) -> str | None:
+    async def prepare(self, callout: Pending) -> str | None:
         await asyncio.sleep(self.synthesis)
-        return text or None
+        return callout.text or None
+
+    def seconds(self, clip: str) -> float:
+        return self.playing
 
     async def play(self, clip: str, callout: Pending) -> None:
         self.started.append(clip)
@@ -123,37 +125,8 @@ class Recorder:
     def release(self, clip: str) -> None:
         self.released += 1
 
-
-@dataclass
-class Running:
-    nc: Client
-    callouts: Callouts[str]
-    task: asyncio.Task[None]
-
-    async def kill(self) -> None:
-        """Stop it as a dying process would: nothing acked on the way out."""
-        self.task.cancel()
-        await asyncio.gather(self.task, return_exceptions=True)
-        await self.nc.close()
-
-
-@pytest.fixture
-async def start(nats_server: NATSServer, js: JetStreamContext) -> AsyncIterator[Callable[..., Any]]:
-    running: list[Running] = []
-
-    async def start(sink: Recorder, phrases: Phrases | None = None, src: str = SRC) -> Running:
-        nc = await nats.connect(nats_server.url)
-        c = Callouts(
-            nc, src, phrases or Phrases(templates(script=False)), sink, logging.getLogger("radio")
-        )
-        r = Running(nc, c, asyncio.create_task(c.run()))
-        running.append(r)
-        return r
-
-    yield start
-    for r in running:
-        if not r.nc.is_closed:
-            await r.kill()
+    async def close(self) -> None:
+        return None
 
 
 @pytest.fixture(autouse=True)
@@ -306,8 +279,7 @@ async def test_a_redelivery_is_never_said_twice(start: Any, js: JetStreamContext
     sink = Recorder()
     await start(sink)
     await publish(js, made("final_lap", "template", 10, hold=2.5, expires_in=5))
-    await asyncio.sleep(3.2)
-    assert sink.said == ["Final lap."]
+    await until(lambda: sink.said == ["Final lap."], timeout=10)
     await asyncio.sleep(callouts.ACK_WAIT + 0.3)
     assert sink.said == ["Final lap."]
     assert await stream_empty(js)
@@ -333,17 +305,31 @@ async def test_phrased_in_the_stream_order_before_any_drop(
     # the three levels, before radio speaks or drops it, so the seeded picks are
     # ecu's order whatever the levels, the holds and expiry do. The last one is a
     # callout ecu held in the pit lane and published at the exit: it keeps the
-    # earlier `at` it was raised on, and is phrased where it was published.
+    # earlier `at` it was raised on, and is phrased where it was published. The
+    # phrasebook is seeded by the session's id (radio.engineer).
     published = [
-        made("lap_time", "delta_first", 20, at=10, slots={"lap": 2, "lapTimeMs": 64611}),
         made(
-            "lap_time", "delta_equal", 5, at=11, slots={"lap": 3, "lapTimeMs": 64611, "deltaMs": 0}
+            "lap_time",
+            "delta_first",
+            20,
+            at=10,
+            session="replay",
+            slots={"lap": 2, "lapTimeMs": 64611},
+        ),
+        made(
+            "lap_time",
+            "delta_equal",
+            5,
+            at=11,
+            session="replay",
+            slots={"lap": 3, "lapTimeMs": 64611, "deltaMs": 0},
         ),
         made(
             "lap_time",
             "delta_first",
             20,
             at=12,
+            session="replay",
             slots={"lap": 4, "lapTimeMs": 64000},
             expires_in=-1,
         ),
@@ -352,9 +338,17 @@ async def test_phrased_in_the_stream_order_before_any_drop(
             "template_new_best",
             11,
             at=13,
+            session="replay",
             slots={"lap": 5, "lapTimeMs": 63000, "deltaMs": -1000},
         ),
-        made("lap_time", "template_in_lap", 20, at=5, slots={"lap": 1, "lapTimeMs": 70000}),
+        made(
+            "lap_time",
+            "template_in_lap",
+            20,
+            at=5,
+            session="replay",
+            slots={"lap": 1, "lapTimeMs": 70000},
+        ),
     ]
     for m in published:
         await publish(js, m)
@@ -365,7 +359,7 @@ async def test_phrased_in_the_stream_order_before_any_drop(
         texts
     ), "the test tells the two orders apart"
     sink = Recorder()
-    r = await start(sink, Phrases(templates(), seed="replay"))
+    r = await start(sink, roster(script=True))
     await until(lambda: len(sink.said) == 4)
     assert r.callouts.dropped["queued"] == 1
     # Spoken by level and priority, worded as phrased in the stream's order.
@@ -465,3 +459,61 @@ async def test_the_ack_before_speaking_is_taken_by_the_server(
     await publish(js, made("final_lap", "template", 10))
     await until(lambda: sink.started == ["Final lap."])
     assert await stream_empty(js)
+
+
+async def test_each_session_has_its_engineer_and_seeded_words(
+    start: Any, js: JetStreamContext, log: io.StringIO
+) -> None:
+    # The engineer is chosen at a session's first callout, once, and its phrasebook
+    # is seeded by the session's id: two sessions' callouts, interleaved, are each
+    # worded as that session's own seeded phrasebook words them.
+    def lap(n: int, session: str) -> callout_pb2.Callout:
+        return made(
+            "lap_time",
+            "delta_slower",
+            20,
+            session=session,
+            slots={"lap": n, "lapTimeMs": 64611, "deltaMs": 700},
+        )
+
+    sent = [lap(n, s) for n in range(2, 6) for s in ("01A", "01B")]
+    sink = Recorder()
+    await start(sink, roster(script=True))
+    for m in sent:
+        await publish(js, m)
+    await until(lambda: len(sink.said) == len(sent))
+    for session in ("01A", "01B"):
+        own = Phrases(templates(), seed=session)
+        expected = [own.say(from_message(m)) for m in sent if m.session_id == session]
+        assert [t for t, m in zip(sink.said, sent, strict=True) if m.session_id == session] == (
+            expected
+        )
+    chosen = [
+        (x["session_id"], x["engineer"]) for x in lines(log) if x["msg"] == "callouts: engineer"
+    ]
+    assert chosen == [("01A", "v1"), ("01B", "v1")]
+
+
+async def test_another_engineer_words_the_same_callouts_differently(
+    start: Any, js: JetStreamContext
+) -> None:
+    # ecu is the brain: an engineer changes how a callout is said, never which.
+    other = Engineer("other", Path("other.onnx"), VoiceSettings(), templates(script=True))
+    v1 = roster().default
+    sent = [
+        made("final_lap", "template", 11),
+        made("fuel", "template_pit", 15),
+        made("position", "template_lost", 12, slots={"position": 3}),
+    ]
+    said = {}
+    for name in ("v1", "other"):
+        sink = Recorder()
+        r = await start(sink, Roster([v1, other], configured=name))
+        for m in sent:
+            m.id = f"{m.id}-{name}"
+            await publish(js, m)
+        await until(lambda sink=sink: len(sink.said) == len(sent))
+        said[name] = sink.said
+        await r.kill()
+    assert said["v1"] == ["Final lap.", "Down to third.", "Pit this lap."]
+    assert len(said["other"]) == 3 and said["other"] != said["v1"]
