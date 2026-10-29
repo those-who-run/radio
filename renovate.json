@@ -1,4 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>those-who-run/.github#v0.2.14"]
+  "extends": ["github>those-who-run/.github#v0.2.14"],
+  "packageRules": [
+    {
+      "description": "radio's own Python stays on 3.14 until onnxruntime, which Piper needs, publishes cp315 wheels (microsoft/onnxruntime#33271). Remove this rule with the move back to 3.15. CI's test job, which runs only standard-library scripts, is not held.",
+      "matchManagers": ["pyenv", "dockerfile", "pep621"],
+      "matchDepNames": ["python", "docker.io/library/python"],
+      "allowedVersions": "<3.15"
+    }
+  ]
 }
