@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/those-who-run/radio/compare/v0.1.0...v0.1.1) (2026-10-29)
+
+
+### Features
+
+* **radio:** speak in Discord through the bot whose token it's given ([#19](https://github.com/those-who-run/radio/issues/19)) ([5fc84f2](https://github.com/those-who-run/radio/commit/5fc84f26ef7dbc297e6acc4649c2efb195bd2fc6))
+
 ## 0.1.0 (2026-10-29)
 
 
