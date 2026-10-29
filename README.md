@@ -93,9 +93,10 @@ speaks. A situational key (`template_gained_lead`, `delta_slower_large`) falls b
 to its general one when the script lacks it, as v1 did; a callout with no `kind`,
 or one radio doesn't know, is spoken from its `text` as it is. Seeded, the same
 callouts give the same words, for a replay. A v1 rules file's templates and its
-`script: false` can be laid over the script (`radio.phrasing.load_rules_file`); no
-setting points radio at one yet, and radio doesn't take callouts yet
-(paddock#56).
+`script: false` can be laid over the script (`radio.phrasing.load_rules_file`), and
+a template whose placeholders its key can't fill is refused when it loads. They will
+come from the file `TWR_RADIO_VOICE_FILE` names, once radio takes callouts
+(paddock#56); until then radio speaks the script.
 
 The phrases have no abbreviations: speech splits sentences after any full stop
 and a space, so "Approx. 3 s" would pause mid-sentence. A test keeps it so.
