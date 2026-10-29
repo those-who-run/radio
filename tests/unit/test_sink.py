@@ -33,7 +33,8 @@ def pending(text: str, rule: str = "final_lap", settings: Settings | None = None
     m.created_at.FromDatetime(datetime(2026, 10, 15, 12, 3, 4, 520000, tzinfo=UTC))
     p = Pending(m, Level.P1, 1, Delivery())
     p.text = text
-    p.engineer = from_settings(settings or Settings())
+    # A voice radio has no sums for, so the fake loads without the real model.
+    p.engineer = from_settings(settings or Settings(voice_model=Path("fake.onnx")))
     return p
 
 
