@@ -11,7 +11,7 @@
 
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
-FROM docker.io/library/python:3.15.2-slim-trixie@sha256:c4158543ecb725b99e57d129dfd43d761d4c43e4577b5e23326aabb223cf7f4e AS build
+FROM docker.io/library/python:3.14.10-slim-trixie@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999 AS build
 # Bytecode compiled now, since the running image can't write it; the image's own
 # Python, never a download.
 ENV UV_COMPILE_BYTECODE=1 \
@@ -30,7 +30,7 @@ COPY src ./src
 RUN --mount=from=uv,source=/uv,target=/usr/local/bin/uv \
     uv sync --frozen --no-dev --no-editable
 
-FROM docker.io/library/python:3.15.2-slim-trixie@sha256:c4158543ecb725b99e57d129dfd43d761d4c43e4577b5e23326aabb223cf7f4e
+FROM docker.io/library/python:3.14.10-slim-trixie@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999
 COPY --from=build /app/.venv /app/.venv
 COPY LICENSE /app/LICENSE
 # JSON logs in the image, text elsewhere (paddock#55). GET /healthz on :8080.
