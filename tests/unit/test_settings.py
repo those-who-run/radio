@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from radio.phrasing import templates
 from radio.settings import Settings, SettingsError, default_cache_dir, from_env, parse_addr
 from radio.voice import VoiceSettings
 
@@ -41,6 +42,28 @@ def test_radios_own(tmp_path: Path) -> None:
     assert s.voice.noise_scale == 0.5, "a key left out takes v1's default"
     assert s.cache_dir == Path("/cache")
     assert s.cache_max_mb == 5
+    assert s.src == "live"
+
+
+def test_the_source() -> None:
+    assert from_env({"TWR_RADIO_SRC": "replay-sugo-1"}).src == "replay-sugo-1"
+
+
+def test_the_voice_file_sets_the_phrases(tmp_path: Path) -> None:
+    # paddock#90 AC5 at start: the rules file's `script:` and template keys.
+    rules = tmp_path / "rules.yaml"
+    rules.write_text("script: false\nrules:\n  final_lap:\n    template: Last one.\n")
+    s = from_env({"TWR_RADIO_VOICE_FILE": str(rules)})
+    assert s.templates["final_lap"]["template"] == "Last one."
+    assert s.templates["fuel"]["template_pit"] == "Pit this lap.", "the built-in phrase"
+    assert from_env({}).templates == templates()
+
+
+def test_a_bad_template_stops_radio(tmp_path: Path) -> None:
+    rules = tmp_path / "rules.yaml"
+    rules.write_text("rules:\n  position:\n    template_lost: Down to {lap}.\n")
+    with pytest.raises(SettingsError, match="TWR_RADIO_VOICE_FILE.*template_lost"):
+        from_env({"TWR_RADIO_VOICE_FILE": str(rules)})
 
 
 def test_the_cache_goes_in_the_users_cache_directory() -> None:
@@ -77,6 +100,9 @@ def test_addresses(addr: str, want: tuple[str, int]) -> None:
         ({"TWR_RADIO_CACHE_MAX_MB": "-1"}, "TWR_RADIO_CACHE_MAX_MB"),
         ({"TWR_RADIO_CACHE_MAX_MB": "²"}, "TWR_RADIO_CACHE_MAX_MB"),
         ({"TWR_RADIO_VOICE_FILE": "/no/such/voice.yaml"}, "TWR_RADIO_VOICE_FILE"),
+        ({"TWR_RADIO_SRC": "replay.sugo"}, "TWR_RADIO_SRC"),
+        ({"TWR_RADIO_SRC": "a/b"}, "TWR_RADIO_SRC"),
+        ({"TWR_RADIO_SRC": "*"}, "TWR_RADIO_SRC"),
     ],
 )
 def test_a_value_radio_cant_read_stops_it(env: dict[str, str], names: str) -> None:

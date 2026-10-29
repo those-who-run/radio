@@ -18,7 +18,8 @@ make venv   # .venv from uv.lock (needs uv)
 make run    # radio, logging text to standard output
 ```
 
-radio serves `GET /healthz`, connects to NATS and logs `ready`. Until NATS
+radio serves `GET /healthz`, connects to NATS and logs `ready`, then takes
+its source's callouts and speaks them ([The callouts](#the-callouts)). Until NATS
 answers it retries, logging each failed attempt, and `/healthz` answers 503;
 once connected it answers 200. Either way the body is
 `{"status": "ok" | "unavailable", "version": "…", "connected": true | false}`.
@@ -32,7 +33,8 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_LOG_LEVEL` | `info` | The lowest level logged: `debug`, `info`, `warn` or `error`. |
 | `TWR_LOG_FORMAT` | `text` (`json` in the image) | `text` writes logfmt, `json` one object a line. |
 | `TWR_RADIO_VOICE_MODEL` | `voices/en_GB-alba-medium.onnx`, relative to the working directory, where `make voice` puts it from the repository's root (`/app/voices/en_GB-alba-medium.onnx`, baked in, in the image) | The Piper voice, an `.onnx` file with its `.onnx.json` beside it. |
-| `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35) | A YAML file whose `voice:` section tunes the voice ([The voice](#the-voice)). |
+| `TWR_RADIO_SRC` | `live` | The source whose callouts radio speaks, `twr.v1.<src>.callout.>`: `live`, or `replay-<run>` for a replay. Letters, digits, `-` and `_`. |
+| `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35), and v1's script | A v1 rules file: its `voice:` section tunes the voice ([The voice](#the-voice)), and its `script:` and template keys the phrases ([The phrases](#the-phrases)). |
 | `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
 | `TWR_RADIO_CACHE_MAX_MB` | `100` | The sentence cache's cap, in MiB; the least recently used sentence goes first. |
 
@@ -96,12 +98,45 @@ callouts give the same words, for a replay. A v1 rules file's templates and its
 `script: false` can be laid over the script (`radio.phrasing.load_rules_file`), and
 a template whose placeholders its key can't fill is refused when it loads (stricter
 than v1, which refused only a template that wasn't text, and failed when it picked
-the bad variant). They will
-come from the file `TWR_RADIO_VOICE_FILE` names, once radio takes callouts
-(paddock#56); until then radio speaks the script.
+the bad variant). They come from the file `TWR_RADIO_VOICE_FILE` names, and a bad
+one stops radio at start; without it radio speaks the script.
 
 The phrases have no abbreviations: speech splits sentences after any full stop
 and a space, so "Approx. 3 s" would pause mid-sentence. A test keeps it so.
+
+## The callouts
+
+radio is the one consumer of the callouts ecu publishes (paddock#56), and applies
+what ecu decides, the level, the priority, `hold_until`, `expires_at` and the
+phrase key, with no rules of its own ([`callouts.py`](src/radio/callouts.py)):
+
+- **Taking.** Each level has a durable pull consumer on the `CALLOUTS` stream,
+  `radio-<src>-p0`, `-p1` and `-p2`, so a restarted radio carries on where it
+  stopped. radio fetches every level, p0 first, until nothing new comes, then
+  phrases what it took in the order ecu published it (the stream's), before
+  anything decides to speak or drop it, so a seeded replay says the same words.
+  A callout whose kind lacks a slot it says is logged (`callout slot missing`)
+  and still spoken; one radio can't read or phrase is logged and dropped.
+- **Order.** As v1's queue: p0 before p1 before p2, then the priority, then the
+  age. A callout waits until its `hold_until`, and more urgent ones that are due go
+  ahead of it.
+- **Staleness.** A callout past its `expires_at` is dropped, not spoken, at the
+  stage it was in: `queued` (which covers waiting while another plays),
+  `connecting` or `synthesis`, each logged as `callout dropped` with its stage.
+  Without `expires_at` it never goes stale.
+- **One at a time.** The next is taken only once the last was spoken or dropped;
+  one that fails to play is logged and the next is still spoken.
+- **Acks.** A callout is acked when radio starts to say it or drops it. One taken
+  and not yet said comes back after 5 s (the consumers' `ack_wait`) if radio
+  stopped, so a restart says each callout once and drops the ones that expired.
+
+The speaking side is a sink (`radio.sink.Sink`: connect, prepare, play). For now
+radio logs each callout it would say (`speaking`); the console and Discord sinks
+come with paddock#60 and #58.
+
+The tests run against a real `nats-server -js`: the binary `TWR_NATS_SERVER`
+names, else `nats-server` on the `PATH`, else the pinned release, fetched once into
+the user's cache and checked against its sha256 each time the tests run.
 
 ## The image
 

@@ -9,10 +9,12 @@ can't be read is an error, so a typo stops radio rather than being ignored.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from radio.phrasing import TemplateError, Templates, load_rules_file, templates
 from radio.voice import DEFAULT_VOICE, VoiceError, VoiceSettings
 from radio.voice import load as load_voice
 
@@ -23,6 +25,10 @@ DEFAULT_VOICE_MODEL = Path("voices") / f"{DEFAULT_VOICE}.onnx"
 # The speech cache's directory under $XDG_CACHE_HOME, or ~/.cache without it.
 CACHE_NAME = "twr-radio"
 DEFAULT_CACHE_MAX_MB = 100
+DEFAULT_SRC = "live"
+# A source is one subject token and part of the consumers' names (`radio-<src>-p0`):
+# live, parity or replay-<name>.
+SRC = re.compile(r"[A-Za-z0-9_-]+", re.ASCII)
 
 # slog's level names, as the Go components read TWR_LOG_LEVEL.
 LEVELS = {
@@ -64,6 +70,12 @@ class Settings:
     cache_dir: Path = Path(".cache") / CACHE_NAME
     # Its cap in MiB: TWR_RADIO_CACHE_MAX_MB.
     cache_max_mb: int = DEFAULT_CACHE_MAX_MB
+    # The source whose callouts radio speaks, twr.v1.<src>.callout.>: TWR_RADIO_SRC,
+    # live by default, replay-<run> for a replay.
+    src: str = DEFAULT_SRC
+    # The phrases, by rule and key: v1's script over the built-in phrases, with
+    # voice_file's `script:` and template keys over them (radio.phrasing).
+    templates: Templates = field(default_factory=templates)
 
 
 def parse_addr(addr: str) -> tuple[str, int]:
@@ -96,6 +108,15 @@ def from_env(environ: Mapping[str, str]) -> Settings:
     max_mb = get("TWR_RADIO_CACHE_MAX_MB") or str(DEFAULT_CACHE_MAX_MB)
     if not (max_mb.isascii() and max_mb.isdigit()):
         raise SettingsError(f"TWR_RADIO_CACHE_MAX_MB: {max_mb!r} is not a whole number of MiB")
+    src = get("TWR_RADIO_SRC") or DEFAULT_SRC
+    if not SRC.fullmatch(src):
+        raise SettingsError(
+            f"TWR_RADIO_SRC: {src!r} is not a source: letters, digits, - and _ only"
+        )
+    try:
+        table = load_rules_file(voice_file) if voice_file else templates()
+    except TemplateError as err:
+        raise SettingsError(f"TWR_RADIO_VOICE_FILE: {err}") from err
     return Settings(
         nats_url=nats_url,
         health_host=host,
@@ -107,6 +128,8 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         voice=voice_settings,
         cache_dir=Path(get("TWR_RADIO_CACHE_DIR") or default_cache_dir(environ)),
         cache_max_mb=int(max_mb),
+        src=src,
+        templates=table,
     )
 
 

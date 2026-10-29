@@ -1,15 +1,31 @@
-"""The parts of contracts' `Callout` (v0.2.2, `proto/twr/events/v1/callout.proto`) that
-radio phrases: the rule, the kind, the slots and the text.
+"""The parts of contracts' `Callout` (`proto/twr/events/v1/callout.proto`) that radio
+phrases: the rule, the kind, the slots and the text.
 
-A stand-in until contracts publishes its Python package (paddock#265): paddock#56,
-which takes callouts from NATS, swaps it for the generated type. The names and
-meanings are the proto's; an `optional` int that is not set is None here.
+radio takes the generated `twr.events.v1.Callout` from NATS (paddock#56) and
+phrases this view of it (`from_message`): the names and meanings are the proto's,
+but an `optional` int that is not set is None here, where the generated type says
+0, so `radio.phrases` can tell "not said" from zero.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum
+
+from twr.events.v1 import callout_pb2
+
+# CalloutSlots' optional ints, None here when not set.
+_OPTIONAL = (
+    "lap",
+    "lap_time_ms",
+    "delta_ms",
+    "laps",
+    "laps_left",
+    "position",
+    "previous_position",
+    "total_cars",
+    "best_lap_ms",
+)
 
 
 class Corner(IntEnum):
@@ -51,3 +67,16 @@ class Callout:
     kind: str = ""
     slots: CalloutSlots = field(default_factory=CalloutSlots)
     text: str = ""
+
+
+def from_message(m: callout_pb2.Callout) -> Callout:
+    """The phrasing view of a callout as it came off the bus: an optional slot that
+    is not set (HasField) is None, and a corner a later contracts adds is left out."""
+    s = m.slots
+    slots = CalloutSlots(
+        **{name: getattr(s, name) if s.HasField(name) else None for name in _OPTIONAL},
+        track=s.track,
+        corners=tuple(Corner(c) for c in s.corners if c in Corner),
+        timed=s.timed,
+    )
+    return Callout(rule=m.rule, kind=m.kind, slots=slots, text=m.text)

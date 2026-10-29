@@ -33,6 +33,10 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON=/usr/local/bin/python3 \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 WORKDIR /src
+# git, for the contracts, which uv installs from their release tag.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 # The dependencies first, so a change to the code alone reuses this layer. No dev
 # group: the image runs radio, not its checks.
 COPY pyproject.toml uv.lock ./

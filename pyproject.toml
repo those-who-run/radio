@@ -10,6 +10,8 @@ dependencies = [
   "nats-py==2.16.0", # the NATS client (paddock#55: the stable one, asyncio)
   "piper-tts==1.8.0", # the voice, as v1 (paddock#57); onnxruntime under it holds radio on 3.14
   "pyyaml==6.0.3", # the voice: settings file, v1's rules file format (paddock#57)
+  # The callout and its CloudEvents headers, from contracts' release tag (paddock#265).
+  "twr-contracts @ git+https://github.com/those-who-run/contracts@v0.2.3#subdirectory=gen/python",
 ]
 
 [project.scripts]
@@ -24,6 +26,7 @@ dev = [
   "pytest>=9.2",
   "pytest-asyncio>=1.4",
   "ruff>=0.17",
+  "types-protobuf>=6.32",
   "types-pyyaml>=6.0.12",
 ]
 
