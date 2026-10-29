@@ -182,6 +182,34 @@ def test_a_hundred_laps_stay_under_the_cap(tmp_path: Path) -> None:
     assert all(f.name.endswith(".wav") and "-" not in f.name for f in tmp_path.iterdir())
 
 
+def test_a_hundred_laps_through_clips_stay_under_the_cap(tmp_path: Path) -> None:
+    cap = 1000
+    s = synth(tmp_path, max_bytes=cap)
+    for lap in range(1, 101):
+        for clip in s.clips(f"Lap {lap}. one oh {lap * 7}. one over best."):
+            assert clip.exists(), "the clip just given is kept"
+            assert dir_bytes(tmp_path) <= max(cap, clip.stat().st_size), lap
+    assert dir_bytes(tmp_path) <= cap
+    assert s.cache.total_bytes == dir_bytes(tmp_path)
+
+
+async def test_clips_async_makes_each_sentence_off_the_event_loop(tmp_path: Path) -> None:
+    seen: list[threading.Thread] = []
+
+    class Where(FakeVoice):
+        def synthesize_wav(self, text: str, wav: wave.Wave_write) -> None:
+            seen.append(threading.current_thread())
+            super().synthesize_wav(text, wav)
+
+    s = synth(tmp_path, voice=Where())
+    try:
+        got = [frames(c) async for c in s.clips_async("Lap two. Box. .")]
+    finally:
+        s.close()
+    assert got == [ONE * 8, ONE * 4]
+    assert len(seen) == 2 and threading.main_thread() not in seen
+
+
 def test_eviction_is_least_recently_used(tmp_path: Path) -> None:
     clip = 44 + 2 * len("Lap one.")  # the header plus one frame a character
     s = synth(tmp_path, max_bytes=3 * clip)

@@ -54,10 +54,10 @@ class Settings:
     # The Piper voice, an .onnx file with its .onnx.json beside it:
     # TWR_RADIO_VOICE_MODEL. v1's en_GB-alba-medium by default.
     voice_model: Path = DEFAULT_VOICE_MODEL
-    # The YAML file whose `voice:` section tunes the voice, as v1's rules file:
-    # TWR_RADIO_RULES_FILE. Unset, v1's defaults.
-    rules_file: Path | None = None
-    # The voice settings read from rules_file.
+    # The YAML file whose `voice:` section tunes the voice, in v1's rules file
+    # format: TWR_RADIO_VOICE_FILE. Unset, v1's defaults.
+    voice_file: Path | None = None
+    # The voice settings read from voice_file.
     voice: VoiceSettings = field(default_factory=VoiceSettings)
     # The sentence cache: TWR_RADIO_CACHE_DIR, by default twr-radio in the user's
     # cache directory, never a shared data volume.
@@ -88,11 +88,11 @@ def from_env(environ: Mapping[str, str]) -> Settings:
     log_format = get("TWR_LOG_FORMAT").lower() or "text"
     if log_format not in FORMATS:
         raise SettingsError(f"TWR_LOG_FORMAT: {log_format!r} is not one of {', '.join(FORMATS)}")
-    rules_file = Path(get("TWR_RADIO_RULES_FILE")) if get("TWR_RADIO_RULES_FILE") else None
+    voice_file = Path(get("TWR_RADIO_VOICE_FILE")) if get("TWR_RADIO_VOICE_FILE") else None
     try:
-        voice_settings = load_voice(rules_file) if rules_file else VoiceSettings()
+        voice_settings = load_voice(voice_file) if voice_file else VoiceSettings()
     except VoiceError as err:
-        raise SettingsError(f"TWR_RADIO_RULES_FILE: {err}") from err
+        raise SettingsError(f"TWR_RADIO_VOICE_FILE: {err}") from err
     max_mb = get("TWR_RADIO_CACHE_MAX_MB") or str(DEFAULT_CACHE_MAX_MB)
     if not max_mb.isdigit():
         raise SettingsError(f"TWR_RADIO_CACHE_MAX_MB: {max_mb!r} is not a whole number of MiB")
@@ -103,7 +103,7 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         log_level=LEVELS[level_name],
         log_format=log_format,
         voice_model=Path(get("TWR_RADIO_VOICE_MODEL") or DEFAULT_VOICE_MODEL),
-        rules_file=rules_file,
+        voice_file=voice_file,
         voice=voice_settings,
         cache_dir=Path(get("TWR_RADIO_CACHE_DIR") or default_cache_dir(environ)),
         cache_max_mb=int(max_mb),

@@ -25,19 +25,20 @@ def test_every_setting() -> None:
 
 
 def test_radios_own(tmp_path: Path) -> None:
-    rules = tmp_path / "rules.yaml"
+    rules = tmp_path / "voice.yaml"
     rules.write_text("voice:\n  length_scale: 1.1\n  sentence_pause_secs: 0.5\n")
     s = from_env(
         {
             "TWR_RADIO_VOICE_MODEL": "/voices/x.onnx",
-            "TWR_RADIO_RULES_FILE": str(rules),
+            "TWR_RADIO_VOICE_FILE": str(rules),
             "TWR_RADIO_CACHE_DIR": "/cache",
             "TWR_RADIO_CACHE_MAX_MB": "5",
         }
     )
     assert s.voice_model == Path("/voices/x.onnx")
-    assert s.rules_file == rules
+    assert s.voice_file == rules
     assert s.voice == VoiceSettings(length_scale=1.1, sentence_pause_secs=0.5)
+    assert s.voice.noise_scale == 0.5, "a key left out takes v1's default"
     assert s.cache_dir == Path("/cache")
     assert s.cache_max_mb == 5
 
@@ -74,7 +75,7 @@ def test_addresses(addr: str, want: tuple[str, int]) -> None:
         ({"TWR_HEALTH_ADDR": ":70000"}, "TWR_HEALTH_ADDR"),
         ({"TWR_RADIO_CACHE_MAX_MB": "lots"}, "TWR_RADIO_CACHE_MAX_MB"),
         ({"TWR_RADIO_CACHE_MAX_MB": "-1"}, "TWR_RADIO_CACHE_MAX_MB"),
-        ({"TWR_RADIO_RULES_FILE": "/no/such/rules.yaml"}, "TWR_RADIO_RULES_FILE"),
+        ({"TWR_RADIO_VOICE_FILE": "/no/such/voice.yaml"}, "TWR_RADIO_VOICE_FILE"),
     ],
 )
 def test_a_value_radio_cant_read_stops_it(env: dict[str, str], names: str) -> None:

@@ -23,17 +23,26 @@ rules:
 
 
 def write(tmp_path: Path, text: str) -> Path:
-    path = tmp_path / "rules.yaml"
+    path = tmp_path / "voice.yaml"
     path.write_text(text)
     return path
 
 
 def test_defaults_are_v1s() -> None:
-    assert VoiceSettings() == VoiceSettings(None, 0.9, None, None, 0.35)
+    """v1's DEFAULT_RULES["voice"] (config.py at v1.0.0), merged under every rules
+    file; Piper's own defaults from alba's .onnx.json (0.667, 0.8) never applied."""
+    assert VoiceSettings() == VoiceSettings(None, 0.9, 0.5, 0.5, 0.35)
 
 
 def test_v1s_example_rules_file_reads_as_v1_tuned_it(tmp_path: Path) -> None:
-    assert load(write(tmp_path, V1_RULES)) == VoiceSettings()
+    """Its noise keys are commented out, so v1's defaults filled them."""
+    assert load(write(tmp_path, V1_RULES)) == VoiceSettings(
+        speaker_id=None,
+        length_scale=0.9,
+        noise_scale=0.5,
+        noise_w_scale=0.5,
+        sentence_pause_secs=0.35,
+    )
 
 
 def test_every_key(tmp_path: Path) -> None:
@@ -48,7 +57,9 @@ def test_every_key(tmp_path: Path) -> None:
 
 
 def test_a_null_leaves_the_setting_to_the_model(tmp_path: Path) -> None:
-    assert load(write(tmp_path, "voice:\n  length_scale:\n")).length_scale is None
+    got = load(write(tmp_path, "voice:\n  length_scale:\n  noise_scale:\n"))
+    assert got.length_scale is None and got.noise_scale is None
+    assert got.noise_w_scale == 0.5
 
 
 @pytest.mark.parametrize("text", ["", "rules: {}\n", "voice:\n"])
@@ -67,7 +78,7 @@ def test_no_voice_section_is_the_defaults(tmp_path: Path, text: str) -> None:
         ("voice:\n  speaker_id: 1.5\n", "speaker_id"),
         ("voice: [1]\n", "voice: is not a mapping"),
         ("- 1\n", "not a mapping"),
-        ("voice: {\n", "rules.yaml"),
+        ("voice: {\n", "voice.yaml"),
     ],
 )
 def test_a_file_radio_cant_read_is_an_error(tmp_path: Path, text: str, want: str) -> None:
@@ -85,8 +96,8 @@ def test_the_synthesis_key_changes_with_each_setting_but_the_pause() -> None:
     others = [
         VoiceSettings(speaker_id=1),
         VoiceSettings(length_scale=1.0),
-        VoiceSettings(noise_scale=0.5),
-        VoiceSettings(noise_w_scale=0.5),
+        VoiceSettings(noise_scale=0.6),
+        VoiceSettings(noise_w_scale=0.6),
     ]
     assert len({base.synthesis_key(), *(o.synthesis_key() for o in others)}) == 5
     assert VoiceSettings(sentence_pause_secs=1).synthesis_key() == base.synthesis_key()

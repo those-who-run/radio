@@ -14,7 +14,8 @@ A `Voice` is the engine, Piper once radio can install it, and a fake in the test
 The `Synthesizer` around it splits, caches and joins:
 
 - `clips(text)` gives each sentence's clip as soon as it is ready, the seam for a
-  sink that starts playing the first sentence while the rest are made;
+  sink that starts playing the first sentence while the rest are made, and
+  `clips_async` does it off the event loop;
 - `render(text)` gives one `Utterance`, the sentences joined with the pause, as v1
   plays them; `render_async` runs it off the event loop, on its own thread.
 
@@ -40,7 +41,7 @@ import time
 import uuid
 import wave
 from collections import OrderedDict
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -238,7 +239,22 @@ class Synthesizer:
     def clips(self, text: str) -> Iterator[Path]:
         """Each sentence's clip, in order, made or found as it is asked for: the first
         can play while the next is made. A sentence with nothing to say, or no audio,
-        gives none."""
+        gives none. The cache is trimmed to its cap before each clip is given, so a
+        clip is kept until the next one is asked for, and no longer if the cap is
+        tight. It blocks while it synthesises: on the event loop, use clips_async."""
+        for clip in self._clips(text):
+            self.cache.trim()  # keeps the most recent: the clip about to be given
+            yield clip
+
+    async def clips_async(self, text: str) -> AsyncIterator[Path]:
+        """clips, each sentence made on the synthesiser's own thread, never on the
+        event loop."""
+        loop = asyncio.get_running_loop()
+        clips = self.clips(text)
+        while (clip := await loop.run_in_executor(self._executor, next, clips, None)) is not None:
+            yield clip
+
+    def _clips(self, text: str) -> Iterator[Path]:
         for sentence in split_sentences(text):
             if speakable(sentence) and (clip := self._sentence(sentence)) is not None:
                 yield clip
@@ -250,7 +266,8 @@ class Synthesizer:
         if not speakable(text):
             return None
         started = time.perf_counter()
-        parts = list(self.clips(text))
+        # Untrimmed until joined: a tight cap must not evict a part before the join.
+        parts = list(self._clips(text))
         if not parts:
             out = None
         elif len(parts) == 1:

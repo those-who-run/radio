@@ -1,10 +1,12 @@
 """The voice: its settings from a file, and its model checked against the sha256 sums
 radio ships (paddock#57).
 
-The settings are the `voice:` section of a YAML file, TWR_RADIO_RULES_FILE, with
-the keys of v1's `rules.example.yaml`, so a v1 rules file that tuned the voice still
-applies; radio reads that section and nothing else in the file. The `config` KV
-replaces the file later (the Schumacher milestone).
+The settings are the `voice:` section of radio's voice file, TWR_RADIO_VOICE_FILE,
+in YAML with the keys of v1's rules file. In v2 the rules belong to ecu, but radio
+reads only the `voice:` section, so a v1 rules file that tuned the voice can be
+pointed at it as it is. A key the file leaves out takes v1's default (v1's
+`DEFAULT_RULES`, merged under every rules file). The `config` KV replaces the file
+later (the Schumacher milestone).
 
 The model is Piper's `en_GB-alba-medium`, as in v1: an `.onnx` file and its
 `.onnx.json` config beside it, never committed. `make voice` fetches both from the
@@ -33,17 +35,18 @@ class VoiceError(ValueError):
 
 @dataclass(frozen=True)
 class VoiceSettings:
-    """The `voice:` keys, with v1's defaults (#57 R3, R4). None leaves the setting to
-    the model's own config."""
+    """The `voice:` keys, with v1's defaults, `DEFAULT_RULES["voice"]` in v1's
+    config.py (#57 R3, R4). None, a null in the file, leaves the setting to the
+    model's own `.onnx.json` (0.667 and 0.8 for alba's noise)."""
 
     # Which speaker, in a voice that has several; alba has one.
     speaker_id: int | None = None
     # Piper's speaking rate: under 1 speaks faster.
     length_scale: float | None = 0.9
     # Variation in the voice.
-    noise_scale: float | None = None
+    noise_scale: float | None = 0.5
     # Variation in the timing.
-    noise_w_scale: float | None = None
+    noise_w_scale: float | None = 0.5
     # Silence between sentences, in seconds.
     sentence_pause_secs: float = 0.35
 

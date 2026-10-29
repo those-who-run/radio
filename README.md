@@ -32,7 +32,7 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_LOG_LEVEL` | `info` | The lowest level logged: `debug`, `info`, `warn` or `error`. |
 | `TWR_LOG_FORMAT` | `text` (`json` in the image) | `text` writes logfmt, `json` one object a line. |
 | `TWR_RADIO_VOICE_MODEL` | `voices/en_GB-alba-medium.onnx` (the baked-in voice in the image) | The Piper voice, an `.onnx` file with its `.onnx.json` beside it. |
-| `TWR_RADIO_RULES_FILE` | unset: v1's defaults | A YAML file whose `voice:` section tunes the voice ([The voice](#the-voice)). |
+| `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35) | A YAML file whose `voice:` section tunes the voice ([The voice](#the-voice)). |
 | `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
 | `TWR_RADIO_CACHE_MAX_MB` | `100` | The sentence cache's cap, in MiB; the least recently used sentence goes first. |
 
@@ -52,14 +52,16 @@ v1's sums; the image bakes it in the same way, and radio checks a known voice
 again when it loads it. A voice of your own is a path in `TWR_RADIO_VOICE_MODEL`;
 radio has no sums for it, so it logs `voice model not checked`.
 
-The `voice:` section takes v1's keys, so v1's rules file can be mounted as it is;
-radio reads nothing else in it:
+The voice file's `voice:` section takes v1's keys. In v2 the rules belong to
+ecu, but radio reads nothing but the `voice:` section, so a v1 rules file can be
+pointed at it as it is. A key left out takes v1's default, and a null leaves the
+setting to the model's own config:
 
 ```yaml
 voice:
   length_scale: 0.9           # under 1 speaks faster (the default)
-  # noise_scale: 0.5          # variation in the voice
-  # noise_w_scale: 0.5        # variation in the timing
+  noise_scale: 0.5           # variation in the voice (the default)
+  noise_w_scale: 0.5          # variation in the timing (the default)
   # speaker_id: 0             # in a voice with several speakers
   sentence_pause_secs: 0.35   # silence between sentences (the default)
 ```
