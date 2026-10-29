@@ -16,3 +16,8 @@ The image includes a voice and software from other projects:
   voice unchanged.
 - Piper (piper-tts, https://github.com/OHF-Voice/piper1-gpl), GPL-3.0: the
   speech synthesis.
+- discord.py (https://github.com/Rapptz/discord.py), MIT, with PyNaCl
+  (Apache-2.0) and davey (MIT): the Discord voice connection.
+- FFmpeg (https://ffmpeg.org), LGPL-2.1-or-later and GPL-2.0-or-later as Debian
+  builds it, and libopus (https://opus-codec.org), BSD-3-Clause, installed from
+  Debian's packages: resampling and encoding the audio played in Discord.

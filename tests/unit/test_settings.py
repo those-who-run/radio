@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import pytest
+from helpers import DISCORD, TOKEN
 
 from radio.phrasing import templates
 from radio.settings import Settings, SettingsError, default_cache_dir, from_env, parse_addr
@@ -124,11 +125,44 @@ def test_addresses(addr: str, want: tuple[str, int]) -> None:
         ({"TWR_RADIO_SRC": "a/b"}, "TWR_RADIO_SRC"),
         ({"TWR_RADIO_SRC": "*"}, "TWR_RADIO_SRC"),
         ({"TWR_RADIO_SINK": "speaker"}, "TWR_RADIO_SINK"),
-        ({"TWR_RADIO_SINK": "discord"}, "TWR_RADIO_SINK: discord is not here yet"),
+        # R9: the discord sink without the bot's settings.
+        ({"TWR_RADIO_SINK": "discord"}, "TWR_DISCORD_BOT_TOKEN: the discord sink needs"),
+        (
+            {"TWR_RADIO_SINK": "discord", "TWR_DISCORD_BOT_TOKEN": TOKEN},
+            "TWR_DISCORD_VOICE_CHANNEL_ID: the discord sink needs",
+        ),
+        ({"TWR_DISCORD_VOICE_CHANNEL_ID": "general"}, "TWR_DISCORD_VOICE_CHANNEL_ID"),
+        ({"TWR_DISCORD_VOICE_CHANNEL_ID": "0"}, "TWR_DISCORD_VOICE_CHANNEL_ID"),
+        ({**DISCORD, "TWR_RADIO_TIMING": "instant"}, "TWR_RADIO_TIMING: 'instant': the discord"),
+        ({"TWR_RADIO_IDLE_DISCONNECT_SECS": "soon"}, "TWR_RADIO_IDLE_DISCONNECT_SECS"),
+        ({"TWR_RADIO_IDLE_DISCONNECT_SECS": "0"}, "TWR_RADIO_IDLE_DISCONNECT_SECS"),
+        ({"TWR_RADIO_RECONNECT_BACKOFF_SECS": "inf"}, "TWR_RADIO_RECONNECT_BACKOFF_SECS"),
+        ({"TWR_RADIO_RECONNECT_BACKOFF_SECS": "nan"}, "TWR_RADIO_RECONNECT_BACKOFF_SECS"),
         ({"TWR_RADIO_SINK": "wav"}, "TWR_RADIO_WAV_DIR"),
         ({"TWR_RADIO_TIMING": "fast"}, "TWR_RADIO_TIMING"),
     ],
 )
 def test_a_value_radio_cant_read_stops_it(env: dict[str, str], names: str) -> None:
-    with pytest.raises(SettingsError, match=names):
+    with pytest.raises(SettingsError, match=names) as err:
         from_env(env)
+    assert TOKEN not in str(err.value)
+
+
+def test_the_discord_settings() -> None:
+    s = from_env(
+        {
+            **DISCORD,
+            "TWR_RADIO_IDLE_DISCONNECT_SECS": "90",
+            "TWR_RADIO_RECONNECT_BACKOFF_SECS": "2.5",
+        }
+    )
+    assert s.sink == "discord"
+    assert s.discord_token is not None and s.discord_token.reveal() == TOKEN
+    assert s.discord_channel_id == 1234567890
+    assert (s.idle_disconnect_secs, s.reconnect_backoff_secs) == (90.0, 2.5)
+    assert s.secrets() == (TOKEN,)
+    # R8: printing the settings never prints the token.
+    assert TOKEN not in repr(s) and TOKEN not in str(s.discord_token)
+    defaults = from_env({})
+    assert (defaults.idle_disconnect_secs, defaults.reconnect_backoff_secs) == (600.0, 15.0)
+    assert defaults.discord_token is None and defaults.secrets() == ()

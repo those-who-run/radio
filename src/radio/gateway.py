@@ -1,0 +1,110 @@
+"""The Discord client, logged in as the bot radio is given the token of
+(paddock#58): the one place radio uses discord.py, behind radio.discord_sink's
+`Gateway`, and the one client, so later users of Discord share it (R10).
+
+Only voice is sent: the intents are `guilds` and `voice_states`, no message content
+and nothing privileged (v1's DiscordPlayer). The token is handed to discord.py
+and nowhere else.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import logging
+from pathlib import Path
+from typing import cast
+
+import discord
+
+from radio.discord_sink import AudioSource, VoiceChannel, VoiceClient
+from radio.settings import Secret, Settings
+
+
+def intents() -> discord.Intents:
+    """What the bot asks Discord for: its guilds and their voice states."""
+    i = discord.Intents.none()
+    i.guilds = True
+    i.voice_states = True
+    return i
+
+
+class Channel:
+    """A discord.py voice channel as radio.discord_sink's VoiceChannel."""
+
+    def __init__(self, channel: discord.VoiceChannel) -> None:
+        self._channel = channel
+
+    @property
+    def name(self) -> str:
+        return self._channel.name
+
+    def voice_client(self) -> VoiceClient | None:
+        return cast(VoiceClient | None, self._channel.guild.voice_client)
+
+    async def connect(self, *, reconnect: bool, self_deaf: bool) -> VoiceClient:
+        vc: discord.VoiceClient = await self._channel.connect(
+            reconnect=reconnect, self_deaf=self_deaf
+        )
+        return cast(VoiceClient, vc)
+
+
+class DiscordGateway:
+    """discord.py's client. start logs in, which fails at once on a bad token, and
+    runs the gateway in the background, so radio takes callouts meanwhile; a join
+    waits for it to be ready."""
+
+    def __init__(
+        self, token: Secret, logger: logging.Logger, client: discord.Client | None = None
+    ) -> None:
+        self._token = token
+        self.logger = logger
+        self.client = client or discord.Client(intents=intents())
+        self._running: asyncio.Task[None] | None = None
+
+    async def start(self) -> None:
+        # login must come first: it sets up what connect and wait_until_ready use.
+        await self.client.login(self._token.reveal())
+        self._running = asyncio.create_task(self.client.connect(reconnect=True), name="discord")
+        self._running.add_done_callback(self._stopped)
+        self.logger.info("discord: logged in")
+
+    def _stopped(self, task: asyncio.Task[None]) -> None:
+        if not task.cancelled() and (err := task.exception()) is not None:
+            self.logger.error(
+                "discord: gateway stopped", extra={"err": str(err) or type(err).__name__}
+            )
+
+    async def ready(self) -> None:
+        """Wait until the gateway is ready; raise if it stopped instead."""
+        assert self._running is not None, "start first"
+        ready = asyncio.ensure_future(self.client.wait_until_ready())
+        try:
+            await asyncio.wait({ready, self._running}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            ready.cancel()
+        if not self.client.is_ready():
+            raise RuntimeError("discord gateway stopped")
+
+    async def close(self) -> None:
+        await self.client.close()
+        if self._running is not None:
+            self._running.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self._running
+
+    async def channel(self, channel_id: int) -> VoiceChannel:
+        await self.ready()
+        ch = self.client.get_channel(channel_id) or await self.client.fetch_channel(channel_id)
+        if not isinstance(ch, discord.VoiceChannel):
+            raise RuntimeError(f"channel {channel_id} is not a voice channel")
+        return Channel(ch)
+
+    def source(self, path: Path) -> AudioSource:
+        # ffmpeg resamples Piper's WAV to Discord's 48 kHz stereo, as in v1.
+        return discord.FFmpegPCMAudio(str(path))
+
+
+def open_gateway(settings: Settings, logger: logging.Logger) -> DiscordGateway:
+    assert settings.discord_token is not None
+    return DiscordGateway(settings.discord_token, logger)

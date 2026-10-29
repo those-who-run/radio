@@ -48,6 +48,11 @@ RUN --mount=from=uv,source=/uv,target=/usr/local/bin/uv \
     uv sync --frozen --no-dev --no-editable
 
 FROM docker.io/library/python:3.14.10-slim-trixie@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999
+# The discord sink (paddock#58), as v1's image: ffmpeg resamples each clip to
+# Discord's 48 kHz stereo, and discord.py encodes it with libopus.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ffmpeg libopus0 \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/.venv /app/.venv
 COPY --from=voice /voices /app/voices
 COPY LICENSE NOTICE /app/

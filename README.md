@@ -3,7 +3,7 @@
 The voice engineer for Those Who Run v2: it turns callouts from NATS
 into speech in Discord, with the pit-lane policy.
 It is written in Python, as Piper and Discord voice need, and speaks as
-a second bot beside v1's.
+the bot whose token it is given ([Discord](#discord)).
 
 Issues are off in this repository. Every issue, the roadmap and the decisions
 (ADRs) live in [those-who-run/paddock](https://github.com/those-who-run/paddock). A pull request here
@@ -23,7 +23,8 @@ its source's callouts and speaks them ([The callouts](#the-callouts)) to the
 console or to WAV files ([Sinks and timing](#sinks-and-timing)). Until NATS
 answers it retries, logging each failed attempt, and `/healthz` answers 503;
 once connected it answers 200. Either way the body is
-`{"status": "ok" | "unavailable", "version": "…", "connected": true | false}`.
+`{"status": "ok" | "unavailable", "version": "…", "connected": true | false}`,
+with `"voice_connected": true | false` beside them for the `discord` sink.
 SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 `radio --version` prints the version.
 
@@ -38,10 +39,14 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35), and v1's script | A v1 rules file: its `voice:` section tunes the voice ([The voice](#the-voice)), and its `script:` and template keys the phrases ([The phrases](#the-phrases)). |
 | `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
 | `TWR_RADIO_CACHE_MAX_MB` | `100` | The sentence cache's cap, in MiB; the least recently used sentence goes first. |
-| `TWR_RADIO_SINK` | `console` | Where radio speaks: `console`, a line a callout on standard output, or `wav`, a WAV file a callout and the line. `discord` comes with paddock#58. Neither needs a Discord setting. |
+| `TWR_RADIO_SINK` | `console` | Where radio speaks: `console`, a line a callout on standard output, `wav`, a WAV file a callout and the line, or `discord`, the voice channel ([Discord](#discord)). Only `discord` needs the Discord settings. |
 | `TWR_RADIO_WAV_DIR` | unset | The directory the `wav` sink writes to; it needs one. |
 | `TWR_RADIO_TIMING` | `live` | How long a callout takes: `live` on the wall clock, or a replay's own clock, `instant` or `simulated` ([Sinks and timing](#sinks-and-timing)). |
 | `TWR_RADIO_TIMELINE_FILE` | unset | Where each callout's timeline goes, a JSON line each, appended to, so a restart keeps what came before. |
+| `TWR_DISCORD_BOT_TOKEN` | unset | The token of the bot the `discord` sink speaks as, from a secret. Never logged. |
+| `TWR_DISCORD_VOICE_CHANNEL_ID` | unset | The voice channel the `discord` sink speaks in. |
+| `TWR_RADIO_IDLE_DISCONNECT_SECS` | `600` | How long voice stays joined with no session open and nothing to say. |
+| `TWR_RADIO_RECONNECT_BACKOFF_SECS` | `15` | The least time between two attempts to join voice. |
 
 A value radio can't read stops it at start with exit code 2.
 
@@ -49,8 +54,8 @@ A value radio can't read stops it at start with exit code 2.
 
 radio speaks with Piper and v1's voice, `en_GB-alba-medium`, sentence by
 sentence with a pause between sentences, caching each sentence so a phrase
-said before is not made again (paddock#57). The `wav` sink speaks with it, and
-the Discord sink (paddock#58) will.
+said before is not made again (paddock#57). The `wav` and `discord` sinks speak
+with it.
 
 The model is never committed. `make voice` fetches it into `voices/` from the
 pinned [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/en/en_GB/alba/medium)
@@ -177,6 +182,8 @@ A replay, the parity check and the ephemeral environment need no Discord
   and its line printed. The numbers carry on after the highest already in the
   directory, so a restart never overwrites a file.
 
+`discord` is the voice channel, for a race ([Discord](#discord)).
+
 `TWR_RADIO_TIMING` says how long each callout takes ([`timing.py`](src/radio/timing.py)):
 
 - `live`: the wall clock, each callout as long as the sink takes to play it.
@@ -207,6 +214,41 @@ With `TWR_RADIO_TIMELINE_FILE`, each callout settled is a JSON line:
 (`spoken`, `expired` or `dropped`) and `stage` (where it expired or was dropped:
 `queued`, `connecting`, `synthesis`, `not connected`, `phrasing`, `playing` or
 `nothing to say`).
+
+## Discord
+
+The `discord` sink is v1's `DiscordPlayer` (paddock#58,
+[`discord_sink.py`](src/radio/discord_sink.py)). The PS5 joins a voice channel
+through its Discord integration, and radio's bot joins the same channel and
+plays each callout there, which is how it reaches the headset. radio speaks as
+whichever bot `TWR_DISCORD_BOT_TOKEN` belongs to: that is the deployment's
+choice. v2 reuses v1's bot and channel, and the two are never live at once: the
+short shift scales v1's engineer to 0 before v2 races, and radio is scaled to 0
+while v1 is live.
+
+- It needs `TWR_DISCORD_BOT_TOKEN` and `TWR_DISCORD_VOICE_CHANNEL_ID`, and
+  speaks on the wall clock (`TWR_RADIO_TIMING` `live`); without them radio
+  refuses to start. The bot needs Connect and Speak on the channel.
+- It asks Discord for the `guilds` and `voice_states` intents only, no message
+  content and nothing privileged, and joins self-deafened.
+- An event of a session on radio's source (`twr.v1.<src>.evt.<sid>.>`, such as
+  `session.started`), or a callout, joins voice in the background: taking
+  callouts never waits for it. A callout that expires while voice joins is
+  dropped at `connecting`; one that can't be said because the join failed, or
+  voice dropped before it played, at `not connected`.
+- With no session open (`session.ended` or `session.discarded` closes one),
+  voice is left after `TWR_RADIO_IDLE_DISCONNECT_SECS` with nothing to say,
+  checked every 10 s.
+- Joins are at least `TWR_RADIO_RECONNECT_BACKOFF_SECS` apart. A voice client
+  discord.py is already reconnecting is adopted rather than joined over, and
+  replaced only after 4 attempts that find it still down.
+- A clip plays for at most its length plus 5 s, then is stopped and logged.
+- The token goes to discord.py and nowhere else: every log line, radio's and
+  discord.py's, has `[redacted]` wherever it would appear, and no status body
+  holds it.
+
+The image carries ffmpeg, which resamples each clip to Discord's 48 kHz stereo,
+and libopus, which encodes it, as v1's does.
 
 The tests run against a real `nats-server -js`: the binary `TWR_NATS_SERVER`
 names, else `nats-server` on the `PATH`, else the pinned release, fetched once into

@@ -267,3 +267,23 @@ async def test_the_wav_sink_needs_every_engineers_voice(
     )
     with pytest.raises(VoiceError, match="missing.onnx"):
         await asyncio.wait_for(r.run(asyncio.Event()), 10)
+
+
+async def test_stops_promptly_after_taking_callouts(
+    nats_server: NATSServer, js: JetStreamContext, log: io.StringIO
+) -> None:
+    # Found by the offline stage-1 run: SIGTERM waited out the drain's 5 s on the
+    # pull subscriptions. A pod scaled to 0 after a short shift stops at once.
+    out = io.StringIO()
+    r = radio(nats_server.url, log, src="prompt", out=out)
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+    await until(lambda: "callouts: taking" in msgs(log))
+    await publish(js, made("final_lap", "template", 10), src="prompt")
+    await until(lambda: "(final_lap)" in out.getvalue())
+    loop = asyncio.get_running_loop()
+    stopping = loop.time()
+    stop.set()
+    await asyncio.wait_for(task, 10)
+    assert loop.time() - stopping < service.DRAIN_TIMEOUT / 2
+    assert "nats drain" not in msgs(log)

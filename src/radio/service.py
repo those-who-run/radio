@@ -1,6 +1,7 @@
 """radio's service: serve GET /healthz, connect to NATS, log "ready", take and speak
 the source's callouts (radio.callouts) through the sink the settings name until it
-is told to stop, then drain the connection and close the server.
+is told to stop, then drain the connection and close the server. With the discord
+sink, the source's events open voice (radio.discord_sink).
 
 NATS may not be up when radio starts, as in a pod whose server starts beside it, so
 the first connection is retried until it succeeds or radio stops, with a `nats
@@ -19,9 +20,12 @@ from collections.abc import Callable
 from typing import IO
 
 from nats.aio.client import Client
+from nats.aio.msg import Msg
 
 from radio.callouts import Callouts
+from radio.discord_sink import DiscordSink, Gateway
 from radio.engineer import roster
+from radio.gateway import open_gateway
 from radio.health import HealthServer
 from radio.piper_voice import Voices
 from radio.settings import Settings
@@ -51,24 +55,38 @@ class Radio:
         version: str,
         logger: logging.Logger,
         out: IO[str] = sys.stdout,
-        voices: Callable[[Settings, logging.Logger], Voices] = Voices,
+        voices: Callable[[Settings, logging.Logger], Voices] | None = None,
+        gateway: Callable[[Settings, logging.Logger], Gateway] | None = None,
     ) -> None:
         self.settings = settings
         self.logger = logger
         # Where the console line goes, and how the voices are opened (a fake voice
-        # in the tests).
+        # in the tests), and Discord (a fake in the tests).
         self.out = out
-        self.voices = voices
+        self.voices = voices or Voices
+        self.gateway = gateway or open_gateway
+        self.sink: ConsoleSink | None = None
         self.nc: Client | None = None
         # Whether the first connection was made: before it, a failed attempt is an
         # error, not a disconnect.
         self.was_connected = False
         self.health = HealthServer(
-            settings.health_host, settings.health_port, version, self.connected, logger
+            settings.health_host,
+            settings.health_port,
+            version,
+            self.connected,
+            logger,
+            self.voice_connected,
         )
 
     def connected(self) -> bool:
         return self.nc is not None and self.nc.is_connected
+
+    def voice_connected(self) -> bool | None:
+        """Whether Discord voice is up; None without the discord sink."""
+        if self.settings.sink != "discord":
+            return None
+        return isinstance(self.sink, DiscordSink) and self.sink.connected
 
     async def _disconnected(self) -> None:
         if self.was_connected:
@@ -123,12 +141,24 @@ class Radio:
         engineers = roster(s)
         models = [e.voice_model for e in engineers.all()]
         sink: ConsoleSink
-        if s.sink == "wav":
-            assert s.wav_dir is not None
+        if s.sink in ("wav", "discord"):
             missing = [str(m) for m in models if not m.exists()]
             if missing:
                 raise VoiceError(f"voice model missing: {', '.join(missing)} (run `make voice`)")
+        if s.sink == "wav":
+            assert s.wav_dir is not None
             sink = WavSink(self.out, self.voices(s, self.logger), s.wav_dir)
+        elif s.sink == "discord":
+            assert s.discord_channel_id is not None
+            sink = DiscordSink(
+                self.out,
+                self.voices(s, self.logger),
+                self.gateway(s, self.logger),
+                s.discord_channel_id,
+                self.logger,
+                idle=s.idle_disconnect_secs,
+                backoff=s.reconnect_backoff_secs,
+            )
         elif s.timing == SIMULATED and all(m.exists() for m in models):
             # The simulated speaker measures each callout with the voices it has.
             sink = ConsoleSink(self.out, self.voices(s, self.logger))
@@ -139,7 +169,16 @@ class Radio:
             # first callout (v1's App._startup).
             for e in engineers.all():
                 await sink.voices.load(e)
+        self.sink = sink
         timeline = Timeline(s.timeline_file)
+        try:
+            if isinstance(sink, DiscordSink):
+                await sink.start()
+                await self._follow(sink)
+        except BaseException:
+            timeline.close()
+            await sink.close()
+            raise
         callouts = Callouts(
             self.nc, s.src, engineers, sink, self.logger, timing=s.timing, timeline=timeline
         )
@@ -156,6 +195,16 @@ class Radio:
         finally:
             timeline.close()
             await sink.close()
+
+    async def _follow(self, sink: DiscordSink) -> None:
+        """The source's events open voice and close sessions: a plain subscription,
+        since only what happens from now on matters."""
+        assert self.nc is not None
+
+        async def on_event(msg: Msg) -> None:
+            sink.event(msg.subject)
+
+        await self.nc.subscribe(f"twr.v1.{self.settings.src}.evt.>", cb=on_event)
 
     async def run(self, stop: asyncio.Event) -> None:
         """Serve and connect until stop is set, then shut down cleanly."""

@@ -552,3 +552,48 @@ async def test_a_session_let_go_comes_back_with_its_engineer_and_seed(
         (sessions[0], "v1"),
         (sessions[0], "v1"),
     ]
+
+
+async def test_a_fetch_past_its_deadline_is_not_a_fetch_failure(
+    start: Any, js: JetStreamContext, log: io.StringIO, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Found by the offline stage-1 run: during a burst, nats-py's fetch raises the
+    # builtin TimeoutError, not its own, once its deadline passes. That is nothing
+    # more on that level this round, not NATS down: no warning, no RETRY_WAIT.
+    monkeypatch.setattr(callouts, "RETRY_WAIT", 30.0)
+    sink = Recorder()
+    r = await start(sink)
+    await until(lambda: r.callouts._subs)
+    level, sub = r.callouts._subs[0]
+    real = sub.fetch
+    raised: list[int] = []
+
+    async def late(*args: Any, **kwargs: Any) -> Any:
+        if not raised:
+            raised.append(1)
+            raise TimeoutError  # nats-py's plain `raise asyncio.TimeoutError`
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(sub, "fetch", late)
+    burst = [made("final_lap", "template", 10, at=i) for i in range(20)]
+    for m in burst:
+        await publish(js, m)
+    # Well within RETRY_WAIT: the round carried on.
+    await until(lambda: len(sink.said) == 20, timeout=10)
+    assert raised
+    assert "callouts: fetch" not in [x["msg"] for x in lines(log)]
+
+
+async def test_cancelled_it_lets_go_of_its_subscriptions(start: Any, js: JetStreamContext) -> None:
+    # Found by the offline stage-1 run: a pull subscription left behind made the
+    # drain at shutdown wait out its timeout. Stopped, Callouts unsubscribes, so a
+    # drain after it is prompt.
+    r = await start(Recorder())
+    await until(lambda: r.callouts._subs)
+    r.task.cancel()
+    await asyncio.gather(r.task, return_exceptions=True)
+    async with asyncio.timeout(2):
+        await r.nc.drain()
+    assert r.callouts._subs == []
+    # Only nats-py's own inbox for requests is left.
+    assert all(s.subject.startswith("_INBOX.") for s in r.nc._subs.values())

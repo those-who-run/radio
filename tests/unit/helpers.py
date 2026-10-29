@@ -39,6 +39,16 @@ CALLOUTS = StreamConfig(
 )
 
 
+# A known bot token, which no log line or status body may hold (paddock#58 AC4),
+# and the settings for the discord sink with it.
+TOKEN = "twr-known-test-token-5f3c9a17"
+DISCORD = {
+    "TWR_RADIO_SINK": "discord",
+    "TWR_DISCORD_BOT_TOKEN": TOKEN,
+    "TWR_DISCORD_VOICE_CHANNEL_ID": "1234567890",
+}
+
+
 class FakeNATS:
     """Enough of a NATS server for a client to connect, ping and drain: it sends
     INFO, answers each PING with PONG and ignores the rest."""
