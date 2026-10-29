@@ -25,6 +25,7 @@ from twr.events.v1 import callout_pb2
 from twr_contracts import callout, ce
 
 from radio import callouts
+from radio.callout import from_message
 from radio.callouts import Callouts
 from radio.phrases import Phrases
 from radio.phrasing import templates
@@ -318,13 +319,15 @@ async def test_one_that_fails_to_play_is_logged_and_the_next_is_said(
     await wait_empty(js)
 
 
-async def test_phrased_in_the_order_raised_before_any_drop(
+async def test_phrased_in_the_stream_order_before_any_drop(
     start: Any, js: JetStreamContext
 ) -> None:
-    # The maintainer's default (radio#16): each callout is phrased in the order it
-    # was raised, run_id then at, before radio speaks or drops it, so the seeded
-    # picks are the same whatever the levels, the holds and expiry do.
-    raised = [
+    # Each callout is phrased in the order ecu published it, the stream's, across
+    # the three levels, before radio speaks or drops it, so the seeded picks are
+    # ecu's order whatever the levels, the holds and expiry do. The last one is a
+    # callout ecu held in the pit lane and published at the exit: it keeps the
+    # earlier `at` it was raised on, and is phrased where it was published.
+    published = [
         made("lap_time", "delta_first", 20, at=10, slots={"lap": 2, "lapTimeMs": 64611}),
         made(
             "lap_time", "delta_equal", 5, at=11, slots={"lap": 3, "lapTimeMs": 64611, "deltaMs": 0}
@@ -344,29 +347,24 @@ async def test_phrased_in_the_order_raised_before_any_drop(
             at=13,
             slots={"lap": 5, "lapTimeMs": 63000, "deltaMs": -1000},
         ),
-        made(
-            "lap_time",
-            "delta_first",
-            20,
-            at=5,
-            run_id="01RUM",
-            slots={"lap": 1, "lapTimeMs": 70000},
-        ),
+        made("lap_time", "template_in_lap", 20, at=5, slots={"lap": 1, "lapTimeMs": 70000}),
     ]
-    # Published out of order: the seq of a later frame first, the last run last.
-    for m in reversed(raised):
+    for m in published:
         await publish(js, m)
     expected = Phrases(templates(), seed="replay")
-    from radio.callout import from_message
-
-    order = [raised[4], *raised[:4]]
-    texts = {m.id: expected.say(from_message(m)) for m in order}
+    texts = {m.id: expected.say(from_message(m)) for m in published}
+    by_at = Phrases(templates(), seed="replay")
+    assert {m.id: by_at.say(from_message(m)) for m in sorted(published, key=lambda m: m.at)} != (
+        texts
+    ), "the test tells the two orders apart"
     sink = Recorder()
     r = await start(sink, Phrases(templates(), seed="replay"))
     await until(lambda: len(sink.said) == 4)
     assert r.callouts.dropped["queued"] == 1
-    # Spoken by level and priority, worded as phrased in the order raised.
-    assert sink.said == [texts[m.id] for m in (raised[1], raised[3], raised[0], raised[4])]
+    # Spoken by level and priority, worded as phrased in the stream's order.
+    assert sink.said == [
+        texts[m.id] for m in (published[1], published[3], published[0], published[4])
+    ]
 
 
 async def test_a_missing_slot_is_warned_and_still_said(

@@ -113,7 +113,7 @@ phrase key, with no rules of its own ([`callouts.py`](src/radio/callouts.py)):
 - **Taking.** Each level has a durable pull consumer on the `CALLOUTS` stream,
   `radio-<src>-p0`, `-p1` and `-p2`, so a restarted radio carries on where it
   stopped. radio fetches every level, p0 first, until nothing new comes, then
-  phrases what it took in the order it was raised (`run_id`, then `at`), before
+  phrases what it took in the order ecu published it (the stream's), before
   anything decides to speak or drop it, so a seeded replay says the same words.
   A callout whose kind lacks a slot it says is logged (`callout slot missing`)
   and still spoken; one radio can't read or phrase is logged and dropped.

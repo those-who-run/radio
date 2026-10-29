@@ -11,18 +11,22 @@ from pathlib import Path
 
 from nats.js.api import DiscardPolicy, RetentionPolicy, StorageType, StreamConfig
 
-# The CALLOUTS stream as paddock#73 and contracts' subjects.yaml define it: every
-# source's callouts, a work queue kept 30 s, deduplicated on the callout's id.
-# paddock's deploy/nats/streams/ holds the deployed copy. #73 asks for a 2 min
-# duplicate window, but the server refuses one longer than max_age (err_code
-# 10052), so it is max_age's 30 s here.
+# The CALLOUTS stream as paddock's deploy/nats/streams/callouts.json defines it
+# (paddock#73): every source's callouts, a work queue kept 30 s, 64 MiB at most,
+# deduplicated on the callout's id for 30 s (the server refuses a duplicate window
+# longer than max_age).
 CALLOUTS = StreamConfig(
     name="CALLOUTS",
+    description=(
+        "Callouts from every source for radio, kept 30 s or until acked, "
+        "deduplicated on Nats-Msg-Id (paddock#73)."
+    ),
     subjects=["twr.v1.*.callout.>"],
     retention=RetentionPolicy.WORK_QUEUE,
     storage=StorageType.FILE,
     discard=DiscardPolicy.OLD,
     max_age=30,
+    max_bytes=67108864,
     duplicate_window=30,
     num_replicas=1,
 )

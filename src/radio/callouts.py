@@ -5,10 +5,14 @@ with the stream in front.
 Taking. Each level, `twr.v1.<src>.callout.p0`, `.p1` and `.p2`, has a durable pull
 consumer, `radio-<src>-p0` and so on, so a restarted radio carries on where it
 stopped. radio fetches every level, p0 first, until a whole round brings nothing
-new, then phrases what it took in the order it was raised (`run_id`, then `at`,
-then the stream's order) and queues it (`radio.queue`). Phrasing comes before
-anything decides to speak or drop a callout, so the levels, expiry and the pit lane
-never change the order of each rule's seeded picks (paddock#90). A round runs when
+new, then phrases what it took in the stream's order, across the three levels,
+and queues it (`radio.queue`). ecu publishes one callout at a time in the order it
+decided, so the stream's sequence is ecu's order and a replay's is the same every
+time. It is the order the callouts were raised in (`run_id`, then `at`) but for a
+callout ecu held in the pit lane, which keeps the `at` it was raised on and is
+published at the exit: radio phrases it where ecu published it. Phrasing comes
+before anything decides to speak or drop a callout, so the levels, expiry and the
+pit lane never change the order of each rule's seeded picks (paddock#90). A round runs when
 a callout is published (a plain subscription to the same subjects says so) and
 every REFETCH seconds, which picks up a redelivery.
 
@@ -83,10 +87,6 @@ PHRASING = "phrasing"
 def durable(src: str, level: callout.Level) -> str:
     """A level's consumer: radio-<src>-p0 and so on."""
     return f"radio-{src}-{level}"
-
-
-def _raised(p: Pending) -> tuple[str, int, int]:
-    return (p.callout.run_id, p.callout.at, p.seq)
 
 
 class Callouts[C]:
@@ -177,13 +177,13 @@ class Callouts[C]:
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._published.wait(), REFETCH)
                 continue
-            for p in sorted(taken, key=_raised):
+            for p in sorted(taken, key=lambda p: p.seq):
                 await self._phrase(p)
             taken.clear()
 
     async def _round(self, taken: list[Pending]) -> None:
         """Adds what every level holds to taken, p0 first, fetched until a whole
-        round brings nothing: what was published after that was raised after all
+        round brings nothing: what was published after that came after all
         of it."""
         while True:
             got = False
