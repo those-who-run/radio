@@ -1,0 +1,17 @@
+{
+  "sessionId": "01JB5N2E8R4T6W9Y1A3C5E7G9H",
+  "id": "01JB5N3B3D5F7H9K1N3Q5S7W9Y",
+  "rule": "position",
+  "kind": "template_lost",
+  "slots": {
+    "position": 12,
+    "previousPosition": 10
+  },
+  "priority": 12,
+  "at": 2100,
+  "runId": "01JB5N1Z7Q3S5V8X0B2D4F6H8K",
+  "createdAt": "2026-10-15T19:00:35.088536Z",
+  "expiresAt": "2026-10-15T19:00:43.088536Z",
+  "holdUntil": "2026-10-15T19:00:36.088536Z",
+  "pitLane": "PIT_LANE_DROP"
+}

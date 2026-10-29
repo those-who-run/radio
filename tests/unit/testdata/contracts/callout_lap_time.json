@@ -1,0 +1,17 @@
+{
+  "sessionId": "01JB8Z3K5Q9T2M7XW4R6N1PDHE",
+  "id": "01JB8Z9F2H4K6M8P0R2T4V6X8Z",
+  "rule": "lap_time",
+  "kind": "delta_slower",
+  "slots": {
+    "lap": 3,
+    "lapTimeMs": 99000,
+    "deltaMs": 1000
+  },
+  "priority": 20,
+  "at": 19236,
+  "runId": "01JB8Z2W6Y8A0C2E4G6J8M0P2R",
+  "createdAt": "2026-10-26T19:35:21.875Z",
+  "expiresAt": "2026-10-26T19:35:29.875Z",
+  "pitLane": "PIT_LANE_HOLD"
+}

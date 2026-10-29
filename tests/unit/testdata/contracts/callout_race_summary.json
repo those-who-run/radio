@@ -1,0 +1,16 @@
+{
+  "sessionId": "01JB5N2E8R4T6W9Y1A3C5E7G9H",
+  "id": "01JB5N3D7F9H1K3N5Q7S9V1X3A",
+  "rule": "race_summary",
+  "kind": "template_position_podium",
+  "slots": {
+    "position": 2,
+    "bestLapMs": 61186
+  },
+  "priority": 25,
+  "at": 23585,
+  "runId": "01JB5N1Z7Q3S5V8X0B2D4F6H8K",
+  "createdAt": "2026-10-15T19:06:33.531882Z",
+  "expiresAt": "2026-10-15T19:07:03.531882Z",
+  "pitLane": "PIT_LANE_SPEAK"
+}

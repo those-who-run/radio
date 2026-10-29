@@ -1,0 +1,11 @@
+{
+  "id": "01JBBX9A3C5E7G9J1M3P5R7T9V",
+  "rule": "telemetry",
+  "kind": "template_lost",
+  "priority": 5,
+  "at": 52340,
+  "runId": "01JBBWZ5C8E2H4K7M9P1R3T6VX",
+  "createdAt": "2026-10-17T19:12:04.250Z",
+  "expiresAt": "2026-10-17T19:12:12.250Z",
+  "pitLane": "PIT_LANE_HOLD"
+}

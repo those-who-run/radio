@@ -38,7 +38,8 @@ required-version = ">=0.13"
 line-length = 100
 target-version = "py314"
 # The package and its tests. The scripts in scripts/ and the unittest tests beside
-# them in tests/ are copies from paddock and .github, kept as they are there.
+# them in tests/ are copies from paddock and .github, kept as they are there;
+# scripts/v1_phrases.py imports v1, which radio does not install.
 include = ["src/**/*.py", "tests/unit/**/*.py", "tests/voice/**/*.py"]
 
 [tool.ruff.lint]

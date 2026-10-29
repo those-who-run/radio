@@ -7,8 +7,8 @@ four point six. four point three over best." ran together in v1. Each sentence i
 cached on its own, so the fixed parts ("Lap two.", "Final lap.") are synthesised
 once and only the numbers are new for each lap.
 
-The text is plain text: what to say has already been decided and worded (#90's
-phrasebook turns a callout into text, paddock#71), so nothing here reads a callout.
+The text is plain text: what to say has already been decided and worded (`radio.phrases`
+turns a callout into text, paddock#90), so nothing here reads a callout.
 
 A `Voice` is the engine, Piper once radio can install it, and a fake in the tests.
 The `Synthesizer` around it splits, caches and joins:

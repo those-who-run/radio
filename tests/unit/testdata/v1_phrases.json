@@ -1,0 +1,3871 @@
+{
+ "v1": "v1.0.0 (d2cd3739b0237283ed74ab908c71a1d4a2c12455)",
+ "defaults": {
+  "lap_time": {
+   "template": "Lap {lap}. {time}. {delta}",
+   "delta_faster": "{delta} under best",
+   "delta_slower": "{delta} over best",
+   "delta_equal": "equal to best",
+   "delta_first": "",
+   "template_new_best": "Lap {lap}. {time}. New best by {gap}.",
+   "template_in_lap": "In lap, {time}.",
+   "template_out_lap": "Out lap, {time}.",
+   "template_pit_lap": "Pit lap, {time}."
+  },
+  "fuel": {
+   "template": "Fuel. {laps} remaining.",
+   "template_short": "Fuel. Just under {laps}.",
+   "template_critical": "Fuel critical. Less than one lap.",
+   "template_pit_next": "Box next lap.",
+   "template_pit": "Pit this lap.",
+   "template_tight": "Fuel to the flag, just. Save a little.",
+   "template_last_lap_enough": "Fuel is fine to the end."
+  },
+  "final_lap": {
+   "template": "Final lap."
+  },
+  "position": {
+   "template_gained": "Up to {position}.",
+   "template_lost": "Down to {position}."
+  },
+  "start_brief": {
+   "template_track": "{track}.",
+   "template_laps": "{laps}.",
+   "template_laps_to_go": "{laps} to go.",
+   "template_timed": "Timed race.",
+   "template_position": "P {p} of {total}.",
+   "template_joined": "Back with you. Lap {lap}.",
+   "template_joined_position": "P {p}."
+  },
+  "race_summary": {
+   "template": "Chequered flag. {position} {best}",
+   "template_position": "Finished {position}.",
+   "template_best": "Best lap {time}.",
+   "template_quit": "Session done. {laps}. {best}"
+  },
+  "temps": {
+   "template_tyre_hot": "{corners} hot.",
+   "template_tyres_cold": "Tyres cold.",
+   "template_water": "Water temperature high.",
+   "template_oil": "Oil temperature high."
+  },
+  "telemetry": {
+   "template_lost": "Lost telemetry.",
+   "template_back": "Telemetry back."
+  }
+ },
+ "cases": [
+  {
+   "rule": "lap_time",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "Lap twenty-six completed. six twenty-four point one."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": -40
+     },
+     "text": "Squeaked a new best. six twenty-four point one. Up zero point one."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": 1339
+     },
+     "text": "Across the line for lap twenty-six. six twenty-four point one. Dropped one point three."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": 223
+     },
+     "text": "That is lap twenty-six. six twenty-four point one. Down zero point two, very close."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": 41718
+     },
+     "text": "Lap twenty-six completed. six twenty-four point one. Dropped forty-one point seven that time."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": -5303
+     },
+     "text": "Lap twenty-six. six twenty-four point one. New best by five point three."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": -111
+     },
+     "text": "New best by a hair. six twenty-four point one. zero point one quicker."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "In lap, six twenty-four point one."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "That was the out lap. six twenty-four point one."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "Pit lap, six twenty-four point one."
+    },
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "Lap fifty time was eight ten point six."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": -19
+     },
+     "text": "Lap fifty. eight ten point six. equal to best."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": 1009
+     },
+     "text": "Across the line for lap fifty. eight ten point six. one point zero over best."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": 192
+     },
+     "text": "That is lap fifty. eight ten point six. Just zero point two away from your best."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": 50814
+     },
+     "text": "Lap fifty done. eight ten point six. Slower by fifty point eight, let's find the rhythm."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": -4221
+     },
+     "text": "Quicker that time. eight ten point six. four point two under."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": -96
+     },
+     "text": "Marginal improvement. eight ten point six. Up zero point one."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "That is the in lap. eight ten point six."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "Out lap, eight ten point six."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "In and out that lap. eight ten point six."
+    },
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "Across the line for lap twenty-two. six fifty-two point one."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 0
+     },
+     "text": "Lap twenty-two time was six fifty-two point one. Pace is consistent, matched best."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 1725
+     },
+     "text": "That is lap twenty-two. six fifty-two point one. Lost one point eight."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 61
+     },
+     "text": "Lap twenty-two done. six fifty-two point one. zero point one off best."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 41954
+     },
+     "text": "Lap twenty-two completed. six fifty-two point one. Dropped forty-two point zero that time."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": -14578
+     },
+     "text": "Personal best. six fifty-two point one. Up fourteen point five."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": -63
+     },
+     "text": "Lap twenty-two done. six fifty-two point one. equal to best."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "In lap, six fifty-two point one."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "Out lap done. six fifty-two point one."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "Pit lap, six fifty-two point one."
+    },
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "Lap forty. two thirty-one point two."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 14
+     },
+     "text": "Across the line for lap forty. two thirty-one point two. Identical to best."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 923
+     },
+     "text": "Lap forty completed. two thirty-one point two. Dropped zero point nine."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 86
+     },
+     "text": "Lap forty time was two thirty-one point two. Down zero point one, very close."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 12520
+     },
+     "text": "Lap forty. two thirty-one point two. Slower by twelve point five, let's find the rhythm."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": -11906
+     },
+     "text": "Good lap. two thirty-one point two. New best by eleven point nine."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": -147
+     },
+     "text": "New best by a hair. two thirty-one point two. zero point one quicker."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "That is the in lap. two thirty-one point two."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "That was the out lap. two thirty-one point two."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "In and out that lap. two thirty-one point two."
+    }
+   ]
+  },
+  {
+   "rule": "fuel",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Calculated fuel is seven laps."
+    },
+    {
+     "kind": "template_short",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel is just short of seven laps."
+    },
+    {
+     "kind": "template_pit_next",
+     "slots": {},
+     "text": "Pit next lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 2
+     },
+     "text": "We have two laps of fuel left."
+    },
+    {
+     "kind": "template_pit",
+     "slots": {},
+     "text": "Pit this lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Fuel. one lap remaining."
+    },
+    {
+     "kind": "template_critical",
+     "slots": {},
+     "text": "Fuel critical. Empty soon."
+    },
+    {
+     "kind": "template_tight",
+     "slots": {},
+     "text": "Fuel is tight to the flag. Save a little."
+    },
+    {
+     "kind": "template_last_lap_enough",
+     "slots": {},
+     "text": "You have the fuel to finish."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Expect seven laps from this tank."
+    },
+    {
+     "kind": "template_short",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Just under seven laps of fuel."
+    },
+    {
+     "kind": "template_pit_next",
+     "slots": {},
+     "text": "One more lap, then box."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 2
+     },
+     "text": "You have fuel for two laps."
+    },
+    {
+     "kind": "template_pit",
+     "slots": {},
+     "text": "In this lap for fuel."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Fuel. one lap remaining."
+    },
+    {
+     "kind": "template_critical",
+     "slots": {},
+     "text": "Running on fumes now."
+    },
+    {
+     "kind": "template_tight",
+     "slots": {},
+     "text": "Just enough fuel to the end. Lift a little."
+    },
+    {
+     "kind": "template_last_lap_enough",
+     "slots": {},
+     "text": "Fuel is safe."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Calculated fuel is seven laps."
+    },
+    {
+     "kind": "template_short",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. Just under seven laps."
+    },
+    {
+     "kind": "template_pit_next",
+     "slots": {},
+     "text": "Box next lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 2
+     },
+     "text": "Fuel. two laps remaining."
+    },
+    {
+     "kind": "template_pit",
+     "slots": {},
+     "text": "Box this lap. Box."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 1
+     },
+     "text": "We have one lap of fuel left."
+    },
+    {
+     "kind": "template_critical",
+     "slots": {},
+     "text": "Fuel critical. Empty soon."
+    },
+    {
+     "kind": "template_tight",
+     "slots": {},
+     "text": "Fuel is tight to the flag. Save a little."
+    },
+    {
+     "kind": "template_last_lap_enough",
+     "slots": {},
+     "text": "You have the fuel to finish."
+    }
+   ]
+  },
+  {
+   "rule": "final_lap",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Last lap now."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "This is the final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Last lap. Bring it home."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Last lap. Bring it home."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "One lap to go."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Last lap now."
+    }
+   ]
+  },
+  {
+   "rule": "position",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_gained_lead",
+     "slots": {
+      "position": 1,
+      "previous_position": 5
+     },
+     "text": "P one. Control the pace."
+    },
+    {
+     "kind": "template_gained_lead",
+     "slots": {
+      "position": 1,
+      "previous_position": 2
+     },
+     "text": "You are in first place."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 3,
+      "previous_position": 6
+     },
+     "text": "Up to third. On the podium."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 2,
+      "previous_position": 4
+     },
+     "text": "Moved up to second. Good work."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 5,
+      "previous_position": 9
+     },
+     "text": "Up to fifth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 7,
+      "previous_position": 12
+     },
+     "text": "Made a pass. Now seventh."
+    },
+    {
+     "kind": "template_lost_lead",
+     "slots": {
+      "position": 4,
+      "previous_position": 1
+     },
+     "text": "Fell from first. Now fourth."
+    },
+    {
+     "kind": "template_lost_lead",
+     "slots": {
+      "position": 2,
+      "previous_position": 1
+     },
+     "text": "Dropped to second."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 5,
+      "previous_position": 3
+     },
+     "text": "Lost out. P five."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 12,
+      "previous_position": 10
+     },
+     "text": "Dropped back to twelfth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 25,
+      "previous_position": 22
+     },
+     "text": "Lost ground. Now running P twenty-five."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 3,
+      "previous_position": 21
+     },
+     "text": "Up to third. On the podium."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 11,
+      "previous_position": 31
+     },
+     "text": "Taking eleventh."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 35,
+      "previous_position": 23
+     },
+     "text": "Fell to P thirty-five."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 28,
+      "previous_position": 34
+     },
+     "text": "Good move. P twenty-eight."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 38,
+      "previous_position": 15
+     },
+     "text": "Lost ground. Now running P thirty-eight."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 40,
+      "previous_position": 27
+     },
+     "text": "Down to P forty."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 30,
+      "previous_position": 18
+     },
+     "text": "Dropped back to P thirty."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 10,
+      "previous_position": 22
+     },
+     "text": "Taking tenth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 7,
+      "previous_position": 37
+     },
+     "text": "Made a pass. Now seventh."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 15,
+      "previous_position": 10
+     },
+     "text": "Lost ground. Now running fifteenth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 14,
+      "previous_position": 6
+     },
+     "text": "Dropped back to fourteenth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 11,
+      "previous_position": 5
+     },
+     "text": "Fell to P eleven."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 22,
+      "previous_position": 37
+     },
+     "text": "Up to P twenty-two."
+    },
+    {
+     "kind": "template_gained_lead",
+     "slots": {
+      "position": 1,
+      "previous_position": 15
+     },
+     "text": "P one. Control the pace."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 30,
+      "previous_position": 8
+     },
+     "text": "Lost ground. Now running P thirty."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 11,
+      "previous_position": 32
+     },
+     "text": "Moving forward. P eleven."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 26,
+      "previous_position": 27
+     },
+     "text": "Made a pass. Now P twenty-six."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 22,
+      "previous_position": 37
+     },
+     "text": "Moved up to P twenty-two."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 14,
+      "previous_position": 26
+     },
+     "text": "Made a pass. Now fourteenth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 12,
+      "previous_position": 20
+     },
+     "text": "Moving forward. P twelve."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 28,
+      "previous_position": 15
+     },
+     "text": "Fell to P twenty-eight."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 37,
+      "previous_position": 28
+     },
+     "text": "Dropped back to P thirty-seven."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 2,
+      "previous_position": 9
+     },
+     "text": "Moved up to second. Good work."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 25,
+      "previous_position": 27
+     },
+     "text": "Good move. P twenty-five."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 18,
+      "previous_position": 7
+     },
+     "text": "Fell to P eighteen."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 4,
+      "previous_position": 9
+     },
+     "text": "Taking fourth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 22,
+      "previous_position": 8
+     },
+     "text": "Lost ground. Now running P twenty-two."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 13,
+      "previous_position": 30
+     },
+     "text": "Up to thirteenth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 28,
+      "previous_position": 6
+     },
+     "text": "Fell to P twenty-eight."
+    }
+   ]
+  },
+  {
+   "rule": "start_brief",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 47
+     },
+     "text": "Forty-seven laps."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Nurburgring 24h",
+      "laps_left": 37,
+      "position": 15,
+      "total_cars": 23
+     },
+     "text": "Nurburgring twenty-four hour. Thirty-seven laps to go. Grid slot fifteen out of twenty-three."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Alsace - Village Reverse",
+      "timed": true,
+      "position": 4,
+      "total_cars": 23
+     },
+     "text": "Ready at Alsace. Village Reverse. Timed race. Lined up fourth of twenty-three."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Willow Springs International Raceway: Big Willow",
+      "laps": 25,
+      "position": 23,
+      "total_cars": 28
+     },
+     "text": "Session starting at Willow Springs International Raceway. Big Willow. Total distance twenty-five laps. P twenty-three of twenty-eight."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps_left": 19,
+      "position": 2,
+      "total_cars": 7
+     },
+     "text": "Nineteen laps left. Starting second from seven."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane",
+      "timed": true,
+      "position": 25,
+      "total_cars": 33
+     },
+     "text": "Ready at Le Mans No Chicane. Clock is running. Grid slot twenty-five out of thirty-three."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Fuji International Speedway (Short)",
+      "laps": 8,
+      "position": 5,
+      "total_cars": 9
+     },
+     "text": "Track is Fuji International Speedway Short. Eight laps. P five of nine."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Circuit de Spa-Francorchamps",
+      "laps_left": 20,
+      "position": 5,
+      "total_cars": 10
+     },
+     "text": "Welcome to Circuit de Spa Francorchamps. Remaining distance is twenty laps. Starting fifth from ten."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "timed": true,
+      "position": 31,
+      "total_cars": 31
+     },
+     "text": "Timed session underway. Lined up P thirty-one of thirty-one."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Suzuka Circuit East Course",
+      "laps": 43,
+      "position": 5,
+      "total_cars": 37
+     },
+     "text": "Suzuka Circuit East Course. We are running forty-three laps. Grid slot five out of thirty-seven."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Nurburgring 24h",
+      "laps_left": 40
+     },
+     "text": "Session starting at Nurburgring twenty-four hour. Forty laps to go."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Alsace - Village Reverse",
+      "timed": true,
+      "position": 3,
+      "total_cars": 12
+     },
+     "text": "Ready at Alsace. Village Reverse. Timed race. Starting third from twelve."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 19,
+      "position": 23,
+      "total_cars": 30
+     },
+     "text": "Distance is nineteen laps. Grid slot twenty-three out of thirty."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Kyoto Driving Park - Yamagiwa+Miyabi",
+      "laps_left": 18,
+      "position": 1,
+      "total_cars": 2
+     },
+     "text": "Track is Kyoto Driving Park. Yamagiwa and Miyabi. Remaining distance is eighteen laps. Starting first from two."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane",
+      "timed": true,
+      "position": 8,
+      "total_cars": 16
+     },
+     "text": "Session starting at Le Mans No Chicane. Clock is running. Grid slot eight out of sixteen."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Fuji International Speedway (Short)",
+      "laps": 27
+     },
+     "text": "Welcome to Fuji International Speedway Short. Twenty-seven laps."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps_left": 12,
+      "position": 21,
+      "total_cars": 35
+     },
+     "text": "Twelve laps left. Lined up P twenty-one of thirty-five."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Sportsland SUGO",
+      "timed": true,
+      "position": 7,
+      "total_cars": 8
+     },
+     "text": "Session starting at Sportsland SUGO. Session is timed. P seven of eight."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Suzuka Circuit East Course",
+      "laps": 26,
+      "position": 10,
+      "total_cars": 13
+     },
+     "text": "Ready at Suzuka Circuit East Course. Total distance twenty-six laps. Lined up tenth of thirteen."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Nurburgring 24h",
+      "laps_left": 14,
+      "position": 2,
+      "total_cars": 4
+     },
+     "text": "Welcome to Nurburgring twenty-four hour. Remaining distance is fourteen laps. P two of four."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "timed": true,
+      "position": 3,
+      "total_cars": 10
+     },
+     "text": "Timed session underway. Starting third from ten."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Willow Springs International Raceway: Big Willow",
+      "laps": 26,
+      "position": 13,
+      "total_cars": 40
+     },
+     "text": "Track is Willow Springs International Raceway. Big Willow. We are running twenty-six laps. P thirteen of forty."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Kyoto Driving Park - Yamagiwa+Miyabi",
+      "laps_left": 7,
+      "position": 15,
+      "total_cars": 36
+     },
+     "text": "Welcome to Kyoto Driving Park. Yamagiwa and Miyabi. Seven laps to go. Starting fifteenth from thirty-six."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane",
+      "timed": true,
+      "position": 26,
+      "total_cars": 34
+     },
+     "text": "Le Mans No Chicane. Timed race. P twenty-six of thirty-four."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Suzuka Circuit East Course"
+     },
+     "text": "Track is Suzuka Circuit East Course."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Nurburgring 24h"
+     },
+     "text": "Ready at Nurburgring twenty-four hour."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Alsace - Village Reverse"
+     },
+     "text": "Session starting at Alsace. Village Reverse."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Willow Springs International Raceway: Big Willow"
+     },
+     "text": "Ready at Willow Springs International Raceway. Big Willow."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Kyoto Driving Park - Yamagiwa+Miyabi"
+     },
+     "text": "Track is Kyoto Driving Park. Yamagiwa and Miyabi."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane"
+     },
+     "text": "Le Mans No Chicane."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Fuji International Speedway (Short)"
+     },
+     "text": "Welcome to Fuji International Speedway Short."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Circuit de Spa-Francorchamps"
+     },
+     "text": "Ready at Circuit de Spa Francorchamps."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Sportsland SUGO"
+     },
+     "text": "Track is Sportsland SUGO."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 20
+     },
+     "text": "Back with you. Lap twenty."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 6,
+      "laps": 32,
+      "position": 13,
+      "total_cars": 26
+     },
+     "text": "Back with you. Lap six of thirty-two. P thirteen."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 9,
+      "laps": 44,
+      "position": 38,
+      "total_cars": 40
+     },
+     "text": "Back with you. Lap nine of forty-four. P thirty-eight."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 10,
+      "position": 2,
+      "total_cars": 5
+     },
+     "text": "Back with you. Lap ten. P two."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 3,
+      "laps": 6
+     },
+     "text": "Back with you. Lap three of six."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 26,
+      "laps": 27,
+      "position": 8,
+      "total_cars": 17
+     },
+     "text": "Back with you. Lap twenty-six of twenty-seven. P eight."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 22,
+      "position": 23,
+      "total_cars": 27
+     },
+     "text": "Back with you. Lap twenty-two. P twenty-three."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 3,
+      "laps": 10,
+      "position": 4,
+      "total_cars": 24
+     },
+     "text": "Back with you. Lap three of ten. P four."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 8,
+      "laps": 27
+     },
+     "text": "Back with you. Lap eight of twenty-seven."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 7,
+      "position": 12,
+      "total_cars": 20
+     },
+     "text": "Back with you. Lap seven. P twelve."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 21,
+      "laps": 27,
+      "position": 19,
+      "total_cars": 38
+     },
+     "text": "Back with you. Lap twenty-one of twenty-seven. P nineteen."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 4,
+      "laps": 33,
+      "position": 14,
+      "total_cars": 15
+     },
+     "text": "Back with you. Lap four of thirty-three. P fourteen."
+    }
+   ]
+  },
+  {
+   "rule": "race_summary",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_position_win",
+     "slots": {
+      "position": 1,
+      "best_lap_ms": 61186
+     },
+     "text": "Chequered flag. P one. Fantastic result. Fastest lap was one oh one point two."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 2,
+      "best_lap_ms": 61186
+     },
+     "text": "Race over. Finished second. Good podium. Best lap was one oh one point two."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 3
+     },
+     "text": "Chequered flag. Crossed the line third. Well driven."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 7,
+      "best_lap_ms": 99950
+     },
+     "text": "Session complete. Brought it home in P seven. Quickest lap one forty point zero."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "best_lap_ms": 72300
+     },
+     "text": "Chequered flag. Fastest lap was one twelve point three."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Race over."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 5,
+      "best_lap_ms": 515751
+     },
+     "text": "Session complete. Crossed the line in fifth. Best lap eight thirty-five point eight."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 20,
+      "best_lap_ms": 131638
+     },
+     "text": "Race over. Finished twentieth. Your best time was two eleven point six."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 9,
+      "best_lap_ms": 161018
+     },
+     "text": "Session complete. Final classification ninth. Best lap two forty-one point zero."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 4,
+      "best_lap_ms": 390960
+     },
+     "text": "Chequered flag. Brought it home in P four. Your best time was six thirty-one point zero."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 16,
+      "best_lap_ms": 193699
+     },
+     "text": "That is the flag. Finished sixteenth. Fastest lap was three thirteen point seven."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 7,
+      "best_lap_ms": 482434
+     },
+     "text": "Session complete. Crossed the line in seventh. Best lap was eight oh two point four."
+    },
+    {
+     "kind": "template_position_win",
+     "slots": {
+      "position": 1,
+      "best_lap_ms": 221961
+     },
+     "text": "That is the flag. Finished first. Brilliant drive. Your best time was three forty-two point zero."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 4,
+      "best_lap_ms": 572806
+     },
+     "text": "Chequered flag. Final classification fourth. Quickest lap nine thirty-two point eight."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 2,
+      "best_lap_ms": 299490
+     },
+     "text": "Race over. Finished second. Good podium. Best lap four fifty-nine point five."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 13,
+      "best_lap_ms": 308855
+     },
+     "text": "Session complete. Crossed the line in thirteenth. Best lap was five oh eight point nine."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 15,
+      "best_lap_ms": 337461
+     },
+     "text": "Race over. Final classification fifteenth. Fastest lap was five thirty-seven point five."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 3,
+      "best_lap_ms": 334905
+     },
+     "text": "That is the flag. P three. Solid podium finish. Best lap was five thirty-four point nine."
+    },
+    {
+     "kind": "template_position_win",
+     "slots": {
+      "position": 1,
+      "best_lap_ms": 173883
+     },
+     "text": "Chequered flag. First place. Great job. Fastest lap was two fifty-three point nine."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 9,
+      "best_lap_ms": 520696
+     },
+     "text": "That is the flag. Brought it home in P nine. Best lap eight forty point seven."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Calling it there. One lap."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 6,
+      "best_lap_ms": 61186
+     },
+     "text": "Session done. Six laps. Best lap was one oh one point two."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 12,
+      "best_lap_ms": 101000
+     },
+     "text": "Good session. Twelve laps in the bag. Quickest lap one forty-one point zero."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 45,
+      "best_lap_ms": 511794
+     },
+     "text": "That is the session. Forty-five laps. Fastest lap was eight thirty-one point eight."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 31,
+      "best_lap_ms": 487909
+     },
+     "text": "Good session. Thirty-one laps in the bag. Your best time was eight oh seven point nine."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 57,
+      "best_lap_ms": 195502
+     },
+     "text": "Session done. Fifty-seven laps. Fastest lap was three fifteen point five."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 73,
+      "best_lap_ms": 480562
+     },
+     "text": "That is the session. Seventy-three laps. Your best time was eight oh zero point six."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 65,
+      "best_lap_ms": 264507
+     },
+     "text": "Session done. Sixty-five laps. Best lap was four twenty-four point five."
+    }
+   ]
+  },
+  {
+   "rule": "temps",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT"
+      ]
+     },
+     "text": "Front left tyre running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Heat building. Front right tyre."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Rear left tyre running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear right tyre overheating."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear tyres running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front tyres overheating."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Heat building. All tyres."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Front left and rear left tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front right and rear right tyres running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front left, front right and rear right tyres hot."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "No heat in the rubber yet."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Cold tyres all round."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Careful, tyres not up to temp."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Engine water is warm, watch it."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water is getting hot."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Engine water is warm, watch it."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "High oil temp."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil is running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT"
+      ]
+     },
+     "text": "Front left tyre running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front right tyre overheating."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Rear left tyre running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Heat building. Rear right tyre."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear tyres overheating."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front tyres running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Heat building. All tyres."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Front left and rear left tyres running hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front right and rear right tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front left, front right and rear right tyres running hot."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Cold tyres all round."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres are cold."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "No heat in the rubber yet."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water is getting hot."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "High water temp alert."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water is getting hot."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil getting hot."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil is running hot."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    }
+   ]
+  },
+  {
+   "rule": "telemetry",
+   "script": true,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Receiving data now."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Telemetry lost."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Data link is down."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "We have data again."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "No data coming through."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry restored."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "We have lost the feed."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Telemetry lost."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Data link back up."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry restored."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "No data coming through."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    }
+   ]
+  },
+  {
+   "rule": "lap_time",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "Lap twenty-six. six twenty-four point one."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": -40
+     },
+     "text": "Lap twenty-six. six twenty-four point one. New best by zero point one."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": 1339
+     },
+     "text": "Lap twenty-six. six twenty-four point one. one point three over best."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": 223
+     },
+     "text": "Lap twenty-six. six twenty-four point one. zero point two over best."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": 41718
+     },
+     "text": "Lap twenty-six. six twenty-four point one. forty-one point seven over best."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": -5303
+     },
+     "text": "Lap twenty-six. six twenty-four point one. New best by five point three."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133,
+      "delta_ms": -111
+     },
+     "text": "Lap twenty-six. six twenty-four point one. New best by zero point one."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "In lap, six twenty-four point one."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "Out lap, six twenty-four point one."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 26,
+      "lap_time_ms": 384133
+     },
+     "text": "Pit lap, six twenty-four point one."
+    },
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "Lap fifty. eight ten point six."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": -19
+     },
+     "text": "Lap fifty. eight ten point six. equal to best."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": 1009
+     },
+     "text": "Lap fifty. eight ten point six. one point zero over best."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": 192
+     },
+     "text": "Lap fifty. eight ten point six. zero point two over best."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": 50814
+     },
+     "text": "Lap fifty. eight ten point six. fifty point eight over best."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": -4221
+     },
+     "text": "Lap fifty. eight ten point six. New best by four point two."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603,
+      "delta_ms": -96
+     },
+     "text": "Lap fifty. eight ten point six. New best by zero point one."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "In lap, eight ten point six."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "Out lap, eight ten point six."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 50,
+      "lap_time_ms": 490603
+     },
+     "text": "Pit lap, eight ten point six."
+    },
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "Lap twenty-two. six fifty-two point one."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 0
+     },
+     "text": "Lap twenty-two. six fifty-two point one. equal to best."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 1725
+     },
+     "text": "Lap twenty-two. six fifty-two point one. one point eight over best."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 61
+     },
+     "text": "Lap twenty-two. six fifty-two point one. zero point one over best."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": 41954
+     },
+     "text": "Lap twenty-two. six fifty-two point one. forty-two point zero over best."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": -14578
+     },
+     "text": "Lap twenty-two. six fifty-two point one. New best by fourteen point five."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070,
+      "delta_ms": -63
+     },
+     "text": "Lap twenty-two. six fifty-two point one. equal to best."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "In lap, six fifty-two point one."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "Out lap, six fifty-two point one."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 22,
+      "lap_time_ms": 412070
+     },
+     "text": "Pit lap, six fifty-two point one."
+    },
+    {
+     "kind": "delta_first",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "Lap forty. two thirty-one point two."
+    },
+    {
+     "kind": "delta_equal",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 14
+     },
+     "text": "Lap forty. two thirty-one point two. equal to best."
+    },
+    {
+     "kind": "delta_slower",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 923
+     },
+     "text": "Lap forty. two thirty-one point two. zero point nine over best."
+    },
+    {
+     "kind": "delta_slower_small",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 86
+     },
+     "text": "Lap forty. two thirty-one point two. zero point one over best."
+    },
+    {
+     "kind": "delta_slower_large",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": 12520
+     },
+     "text": "Lap forty. two thirty-one point two. twelve point five over best."
+    },
+    {
+     "kind": "template_new_best",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": -11906
+     },
+     "text": "Lap forty. two thirty-one point two. New best by eleven point nine."
+    },
+    {
+     "kind": "template_new_best_small",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184,
+      "delta_ms": -147
+     },
+     "text": "Lap forty. two thirty-one point two. New best by zero point one."
+    },
+    {
+     "kind": "template_in_lap",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "In lap, two thirty-one point two."
+    },
+    {
+     "kind": "template_out_lap",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "Out lap, two thirty-one point two."
+    },
+    {
+     "kind": "template_pit_lap",
+     "slots": {
+      "lap": 40,
+      "lap_time_ms": 151184
+     },
+     "text": "Pit lap, two thirty-one point two."
+    }
+   ]
+  },
+  {
+   "rule": "fuel",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. seven laps remaining."
+    },
+    {
+     "kind": "template_short",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. Just under seven laps."
+    },
+    {
+     "kind": "template_pit_next",
+     "slots": {},
+     "text": "Box next lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 2
+     },
+     "text": "Fuel. two laps remaining."
+    },
+    {
+     "kind": "template_pit",
+     "slots": {},
+     "text": "Pit this lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Fuel. one lap remaining."
+    },
+    {
+     "kind": "template_critical",
+     "slots": {},
+     "text": "Fuel critical. Less than one lap."
+    },
+    {
+     "kind": "template_tight",
+     "slots": {},
+     "text": "Fuel to the flag, just. Save a little."
+    },
+    {
+     "kind": "template_last_lap_enough",
+     "slots": {},
+     "text": "Fuel is fine to the end."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. seven laps remaining."
+    },
+    {
+     "kind": "template_short",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. Just under seven laps."
+    },
+    {
+     "kind": "template_pit_next",
+     "slots": {},
+     "text": "Box next lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 2
+     },
+     "text": "Fuel. two laps remaining."
+    },
+    {
+     "kind": "template_pit",
+     "slots": {},
+     "text": "Pit this lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Fuel. one lap remaining."
+    },
+    {
+     "kind": "template_critical",
+     "slots": {},
+     "text": "Fuel critical. Less than one lap."
+    },
+    {
+     "kind": "template_tight",
+     "slots": {},
+     "text": "Fuel to the flag, just. Save a little."
+    },
+    {
+     "kind": "template_last_lap_enough",
+     "slots": {},
+     "text": "Fuel is fine to the end."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. seven laps remaining."
+    },
+    {
+     "kind": "template_short",
+     "slots": {
+      "laps": 7
+     },
+     "text": "Fuel. Just under seven laps."
+    },
+    {
+     "kind": "template_pit_next",
+     "slots": {},
+     "text": "Box next lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 2
+     },
+     "text": "Fuel. two laps remaining."
+    },
+    {
+     "kind": "template_pit",
+     "slots": {},
+     "text": "Pit this lap."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Fuel. one lap remaining."
+    },
+    {
+     "kind": "template_critical",
+     "slots": {},
+     "text": "Fuel critical. Less than one lap."
+    },
+    {
+     "kind": "template_tight",
+     "slots": {},
+     "text": "Fuel to the flag, just. Save a little."
+    },
+    {
+     "kind": "template_last_lap_enough",
+     "slots": {},
+     "text": "Fuel is fine to the end."
+    }
+   ]
+  },
+  {
+   "rule": "final_lap",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Final lap."
+    }
+   ]
+  },
+  {
+   "rule": "position",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_gained_lead",
+     "slots": {
+      "position": 1,
+      "previous_position": 5
+     },
+     "text": "Up to first."
+    },
+    {
+     "kind": "template_gained_lead",
+     "slots": {
+      "position": 1,
+      "previous_position": 2
+     },
+     "text": "Up to first."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 3,
+      "previous_position": 6
+     },
+     "text": "Up to third."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 2,
+      "previous_position": 4
+     },
+     "text": "Up to second."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 5,
+      "previous_position": 9
+     },
+     "text": "Up to fifth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 7,
+      "previous_position": 12
+     },
+     "text": "Up to seventh."
+    },
+    {
+     "kind": "template_lost_lead",
+     "slots": {
+      "position": 4,
+      "previous_position": 1
+     },
+     "text": "Down to fourth."
+    },
+    {
+     "kind": "template_lost_lead",
+     "slots": {
+      "position": 2,
+      "previous_position": 1
+     },
+     "text": "Down to second."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 5,
+      "previous_position": 3
+     },
+     "text": "Down to fifth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 12,
+      "previous_position": 10
+     },
+     "text": "Down to twelfth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 25,
+      "previous_position": 22
+     },
+     "text": "Down to P twenty-five."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 3,
+      "previous_position": 21
+     },
+     "text": "Up to third."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 11,
+      "previous_position": 31
+     },
+     "text": "Up to eleventh."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 35,
+      "previous_position": 23
+     },
+     "text": "Down to P thirty-five."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 28,
+      "previous_position": 34
+     },
+     "text": "Up to P twenty-eight."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 38,
+      "previous_position": 15
+     },
+     "text": "Down to P thirty-eight."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 40,
+      "previous_position": 27
+     },
+     "text": "Down to P forty."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 30,
+      "previous_position": 18
+     },
+     "text": "Down to P thirty."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 10,
+      "previous_position": 22
+     },
+     "text": "Up to tenth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 7,
+      "previous_position": 37
+     },
+     "text": "Up to seventh."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 15,
+      "previous_position": 10
+     },
+     "text": "Down to fifteenth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 14,
+      "previous_position": 6
+     },
+     "text": "Down to fourteenth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 11,
+      "previous_position": 5
+     },
+     "text": "Down to eleventh."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 22,
+      "previous_position": 37
+     },
+     "text": "Up to P twenty-two."
+    },
+    {
+     "kind": "template_gained_lead",
+     "slots": {
+      "position": 1,
+      "previous_position": 15
+     },
+     "text": "Up to first."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 30,
+      "previous_position": 8
+     },
+     "text": "Down to P thirty."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 11,
+      "previous_position": 32
+     },
+     "text": "Up to eleventh."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 26,
+      "previous_position": 27
+     },
+     "text": "Up to P twenty-six."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 22,
+      "previous_position": 37
+     },
+     "text": "Up to P twenty-two."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 14,
+      "previous_position": 26
+     },
+     "text": "Up to fourteenth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 12,
+      "previous_position": 20
+     },
+     "text": "Up to twelfth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 28,
+      "previous_position": 15
+     },
+     "text": "Down to P twenty-eight."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 37,
+      "previous_position": 28
+     },
+     "text": "Down to P thirty-seven."
+    },
+    {
+     "kind": "template_gained_podium",
+     "slots": {
+      "position": 2,
+      "previous_position": 9
+     },
+     "text": "Up to second."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 25,
+      "previous_position": 27
+     },
+     "text": "Up to P twenty-five."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 18,
+      "previous_position": 7
+     },
+     "text": "Down to eighteenth."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 4,
+      "previous_position": 9
+     },
+     "text": "Up to fourth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 22,
+      "previous_position": 8
+     },
+     "text": "Down to P twenty-two."
+    },
+    {
+     "kind": "template_gained",
+     "slots": {
+      "position": 13,
+      "previous_position": 30
+     },
+     "text": "Up to thirteenth."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {
+      "position": 28,
+      "previous_position": 6
+     },
+     "text": "Down to P twenty-eight."
+    }
+   ]
+  },
+  {
+   "rule": "start_brief",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 47
+     },
+     "text": "Forty-seven laps."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Nurburgring 24h",
+      "laps_left": 37,
+      "position": 15,
+      "total_cars": 23
+     },
+     "text": "Nurburgring twenty-four hour. Thirty-seven laps to go. P fifteen of twenty-three."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Alsace - Village Reverse",
+      "timed": true,
+      "position": 4,
+      "total_cars": 23
+     },
+     "text": "Alsace. Village Reverse. Timed race. P four of twenty-three."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Willow Springs International Raceway: Big Willow",
+      "laps": 25,
+      "position": 23,
+      "total_cars": 28
+     },
+     "text": "Willow Springs International Raceway. Big Willow. Twenty-five laps. P twenty-three of twenty-eight."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps_left": 19,
+      "position": 2,
+      "total_cars": 7
+     },
+     "text": "Nineteen laps to go. P two of seven."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane",
+      "timed": true,
+      "position": 25,
+      "total_cars": 33
+     },
+     "text": "Le Mans No Chicane. Timed race. P twenty-five of thirty-three."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Fuji International Speedway (Short)",
+      "laps": 8,
+      "position": 5,
+      "total_cars": 9
+     },
+     "text": "Fuji International Speedway Short. Eight laps. P five of nine."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Circuit de Spa-Francorchamps",
+      "laps_left": 20,
+      "position": 5,
+      "total_cars": 10
+     },
+     "text": "Circuit de Spa Francorchamps. Twenty laps to go. P five of ten."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "timed": true,
+      "position": 31,
+      "total_cars": 31
+     },
+     "text": "Timed race. P thirty-one of thirty-one."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Suzuka Circuit East Course",
+      "laps": 43,
+      "position": 5,
+      "total_cars": 37
+     },
+     "text": "Suzuka Circuit East Course. Forty-three laps. P five of thirty-seven."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Nurburgring 24h",
+      "laps_left": 40
+     },
+     "text": "Nurburgring twenty-four hour. Forty laps to go."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Alsace - Village Reverse",
+      "timed": true,
+      "position": 3,
+      "total_cars": 12
+     },
+     "text": "Alsace. Village Reverse. Timed race. P three of twelve."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps": 19,
+      "position": 23,
+      "total_cars": 30
+     },
+     "text": "Nineteen laps. P twenty-three of thirty."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Kyoto Driving Park - Yamagiwa+Miyabi",
+      "laps_left": 18,
+      "position": 1,
+      "total_cars": 2
+     },
+     "text": "Kyoto Driving Park. Yamagiwa and Miyabi. Eighteen laps to go. P one of two."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane",
+      "timed": true,
+      "position": 8,
+      "total_cars": 16
+     },
+     "text": "Le Mans No Chicane. Timed race. P eight of sixteen."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Fuji International Speedway (Short)",
+      "laps": 27
+     },
+     "text": "Fuji International Speedway Short. Twenty-seven laps."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "laps_left": 12,
+      "position": 21,
+      "total_cars": 35
+     },
+     "text": "Twelve laps to go. P twenty-one of thirty-five."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Sportsland SUGO",
+      "timed": true,
+      "position": 7,
+      "total_cars": 8
+     },
+     "text": "Sportsland SUGO. Timed race. P seven of eight."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Suzuka Circuit East Course",
+      "laps": 26,
+      "position": 10,
+      "total_cars": 13
+     },
+     "text": "Suzuka Circuit East Course. Twenty-six laps. P ten of thirteen."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Nurburgring 24h",
+      "laps_left": 14,
+      "position": 2,
+      "total_cars": 4
+     },
+     "text": "Nurburgring twenty-four hour. Fourteen laps to go. P two of four."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "timed": true,
+      "position": 3,
+      "total_cars": 10
+     },
+     "text": "Timed race. P three of ten."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Willow Springs International Raceway: Big Willow",
+      "laps": 26,
+      "position": 13,
+      "total_cars": 40
+     },
+     "text": "Willow Springs International Raceway. Big Willow. Twenty-six laps. P thirteen of forty."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "Kyoto Driving Park - Yamagiwa+Miyabi",
+      "laps_left": 7,
+      "position": 15,
+      "total_cars": 36
+     },
+     "text": "Kyoto Driving Park. Yamagiwa and Miyabi. Seven laps to go. P fifteen of thirty-six."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane",
+      "timed": true,
+      "position": 26,
+      "total_cars": 34
+     },
+     "text": "Le Mans No Chicane. Timed race. P twenty-six of thirty-four."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Suzuka Circuit East Course"
+     },
+     "text": "Suzuka Circuit East Course."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Nurburgring 24h"
+     },
+     "text": "Nurburgring twenty-four hour."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Alsace - Village Reverse"
+     },
+     "text": "Alsace. Village Reverse."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Willow Springs International Raceway: Big Willow"
+     },
+     "text": "Willow Springs International Raceway. Big Willow."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Kyoto Driving Park - Yamagiwa+Miyabi"
+     },
+     "text": "Kyoto Driving Park. Yamagiwa and Miyabi."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "24 Heures du Mans Racing Circuit No Chicane"
+     },
+     "text": "Le Mans No Chicane."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Fuji International Speedway (Short)"
+     },
+     "text": "Fuji International Speedway Short."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Circuit de Spa-Francorchamps"
+     },
+     "text": "Circuit de Spa Francorchamps."
+    },
+    {
+     "kind": "template_track",
+     "slots": {
+      "track": "Sportsland SUGO"
+     },
+     "text": "Sportsland SUGO."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 20
+     },
+     "text": "Back with you. Lap twenty."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 6,
+      "laps": 32,
+      "position": 13,
+      "total_cars": 26
+     },
+     "text": "Back with you. Lap six of thirty-two. P thirteen."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 9,
+      "laps": 44,
+      "position": 38,
+      "total_cars": 40
+     },
+     "text": "Back with you. Lap nine of forty-four. P thirty-eight."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 10,
+      "position": 2,
+      "total_cars": 5
+     },
+     "text": "Back with you. Lap ten. P two."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 3,
+      "laps": 6
+     },
+     "text": "Back with you. Lap three of six."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 26,
+      "laps": 27,
+      "position": 8,
+      "total_cars": 17
+     },
+     "text": "Back with you. Lap twenty-six of twenty-seven. P eight."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 22,
+      "position": 23,
+      "total_cars": 27
+     },
+     "text": "Back with you. Lap twenty-two. P twenty-three."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 3,
+      "laps": 10,
+      "position": 4,
+      "total_cars": 24
+     },
+     "text": "Back with you. Lap three of ten. P four."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 8,
+      "laps": 27
+     },
+     "text": "Back with you. Lap eight of twenty-seven."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 7,
+      "position": 12,
+      "total_cars": 20
+     },
+     "text": "Back with you. Lap seven. P twelve."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 21,
+      "laps": 27,
+      "position": 19,
+      "total_cars": 38
+     },
+     "text": "Back with you. Lap twenty-one of twenty-seven. P nineteen."
+    },
+    {
+     "kind": "template_joined",
+     "slots": {
+      "lap": 4,
+      "laps": 33,
+      "position": 14,
+      "total_cars": 15
+     },
+     "text": "Back with you. Lap four of thirty-three. P fourteen."
+    }
+   ]
+  },
+  {
+   "rule": "race_summary",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_position_win",
+     "slots": {
+      "position": 1,
+      "best_lap_ms": 61186
+     },
+     "text": "Chequered flag. Finished first. Best lap one oh one point two."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 2,
+      "best_lap_ms": 61186
+     },
+     "text": "Chequered flag. Finished second. Best lap one oh one point two."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 3
+     },
+     "text": "Chequered flag. Finished third."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 7,
+      "best_lap_ms": 99950
+     },
+     "text": "Chequered flag. Finished seventh. Best lap one forty point zero."
+    },
+    {
+     "kind": "template",
+     "slots": {
+      "best_lap_ms": 72300
+     },
+     "text": "Chequered flag. Best lap one twelve point three."
+    },
+    {
+     "kind": "template",
+     "slots": {},
+     "text": "Chequered flag."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 5,
+      "best_lap_ms": 515751
+     },
+     "text": "Chequered flag. Finished fifth. Best lap eight thirty-five point eight."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 20,
+      "best_lap_ms": 131638
+     },
+     "text": "Chequered flag. Finished twentieth. Best lap two eleven point six."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 9,
+      "best_lap_ms": 161018
+     },
+     "text": "Chequered flag. Finished ninth. Best lap two forty-one point zero."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 4,
+      "best_lap_ms": 390960
+     },
+     "text": "Chequered flag. Finished fourth. Best lap six thirty-one point zero."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 16,
+      "best_lap_ms": 193699
+     },
+     "text": "Chequered flag. Finished sixteenth. Best lap three thirteen point seven."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 7,
+      "best_lap_ms": 482434
+     },
+     "text": "Chequered flag. Finished seventh. Best lap eight oh two point four."
+    },
+    {
+     "kind": "template_position_win",
+     "slots": {
+      "position": 1,
+      "best_lap_ms": 221961
+     },
+     "text": "Chequered flag. Finished first. Best lap three forty-two point zero."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 4,
+      "best_lap_ms": 572806
+     },
+     "text": "Chequered flag. Finished fourth. Best lap nine thirty-two point eight."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 2,
+      "best_lap_ms": 299490
+     },
+     "text": "Chequered flag. Finished second. Best lap four fifty-nine point five."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 13,
+      "best_lap_ms": 308855
+     },
+     "text": "Chequered flag. Finished thirteenth. Best lap five oh eight point nine."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 15,
+      "best_lap_ms": 337461
+     },
+     "text": "Chequered flag. Finished fifteenth. Best lap five thirty-seven point five."
+    },
+    {
+     "kind": "template_position_podium",
+     "slots": {
+      "position": 3,
+      "best_lap_ms": 334905
+     },
+     "text": "Chequered flag. Finished third. Best lap five thirty-four point nine."
+    },
+    {
+     "kind": "template_position_win",
+     "slots": {
+      "position": 1,
+      "best_lap_ms": 173883
+     },
+     "text": "Chequered flag. Finished first. Best lap two fifty-three point nine."
+    },
+    {
+     "kind": "template_position",
+     "slots": {
+      "position": 9,
+      "best_lap_ms": 520696
+     },
+     "text": "Chequered flag. Finished ninth. Best lap eight forty point seven."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 1
+     },
+     "text": "Session done. One lap."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 6,
+      "best_lap_ms": 61186
+     },
+     "text": "Session done. Six laps. Best lap one oh one point two."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 12,
+      "best_lap_ms": 101000
+     },
+     "text": "Session done. Twelve laps. Best lap one forty-one point zero."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 45,
+      "best_lap_ms": 511794
+     },
+     "text": "Session done. Forty-five laps. Best lap eight thirty-one point eight."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 31,
+      "best_lap_ms": 487909
+     },
+     "text": "Session done. Thirty-one laps. Best lap eight oh seven point nine."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 57,
+      "best_lap_ms": 195502
+     },
+     "text": "Session done. Fifty-seven laps. Best lap three fifteen point five."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 73,
+      "best_lap_ms": 480562
+     },
+     "text": "Session done. Seventy-three laps. Best lap eight oh zero point six."
+    },
+    {
+     "kind": "template_quit",
+     "slots": {
+      "laps": 65,
+      "best_lap_ms": 264507
+     },
+     "text": "Session done. Sixty-five laps. Best lap four twenty-four point five."
+    }
+   ]
+  },
+  {
+   "rule": "temps",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT"
+      ]
+     },
+     "text": "Front left tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front right tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Rear left tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear right tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "All tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Front left and rear left tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front right and rear right tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front left, front right and rear right tyres hot."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres cold."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres cold."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres cold."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water temperature high."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water temperature high."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT"
+      ]
+     },
+     "text": "Front left tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front right tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Rear left tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear right tyre hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Rear tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT"
+      ]
+     },
+     "text": "Front tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_LEFT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "All tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_REAR_LEFT"
+      ]
+     },
+     "text": "Front left and rear left tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front right and rear right tyres hot."
+    },
+    {
+     "kind": "template_tyre_hot",
+     "slots": {
+      "corners": [
+       "CORNER_FRONT_LEFT",
+       "CORNER_FRONT_RIGHT",
+       "CORNER_REAR_RIGHT"
+      ]
+     },
+     "text": "Front left, front right and rear right tyres hot."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres cold."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres cold."
+    },
+    {
+     "kind": "template_tyres_cold",
+     "slots": {},
+     "text": "Tyres cold."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water temperature high."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water temperature high."
+    },
+    {
+     "kind": "template_water",
+     "slots": {},
+     "text": "Water temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    },
+    {
+     "kind": "template_oil",
+     "slots": {},
+     "text": "Oil temperature high."
+    }
+   ]
+  },
+  {
+   "rule": "telemetry",
+   "script": false,
+   "seed": 90,
+   "callouts": [
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    },
+    {
+     "kind": "template_lost",
+     "slots": {},
+     "text": "Lost telemetry."
+    },
+    {
+     "kind": "template_back",
+     "slots": {},
+     "text": "Telemetry back."
+    }
+   ]
+  }
+ ]
+}

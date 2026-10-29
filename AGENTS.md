@@ -34,7 +34,8 @@ pins a behaviour where one applies.
 - The package is `radio`, in `src/radio/`, with its tests in `tests/unit/`
   (pytest). The tests beside them in `tests/` are the repository's own checks
   (unittest, standard library only), copied from paddock and `.github`; ruff
-  and mypy leave them and `scripts/` alone.
+  and mypy leave them and `scripts/` alone. `scripts/v1_phrases.py` is radio's
+  own: it writes the phrase goldens from v1.0.0's rules, run by hand.
 - Python is the version in `.python-version`, 3.14 for now: Piper needs
   onnxruntime, which has no wheel for 3.15 yet
   ([microsoft/onnxruntime#33271](https://github.com/microsoft/onnxruntime/issues/33271)),

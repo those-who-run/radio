@@ -73,6 +73,36 @@ The tests use a fake voice, so `make check` and CI need no model.
 
 The voice's attribution (CC BY 4.0) is in [`NOTICE`](NOTICE).
 
+## The phrases
+
+ecu's callouts say what to say, not how (contracts' `Callout`, paddock#71): the
+rule, `kind` (the key of the phrase in v1's script) and typed slots. radio phrases
+them as v1.0.0 did (paddock#90), with v1's code carried as it is:
+
+- [`data/script.yaml`](src/radio/data/script.yaml), v1's script: four to six
+  variants for each callout, one picked at random and never the same one twice
+  running for a rule and key;
+- each rule's built-in phrase, v1's `script: false` and the only phrase for
+  `template_joined`, `template_joined_position` and `delta_first`;
+- v1's number words ([`verbalise.py`](src/radio/verbalise.py)): "one oh four point
+  six", "P ten of twenty", tenths rounded half up, and the delta as the
+  difference of the spoken times.
+
+`radio.phrases.Phrases.say(callout)` gives the sentence `Synthesizer.render`
+speaks. A situational key (`template_gained_lead`, `delta_slower_large`) falls back
+to its general one when the script lacks it, as v1 did; a callout with no `kind`,
+or one radio doesn't know, is spoken from its `text` as it is. Seeded, the same
+callouts give the same words, for a replay. A v1 rules file's templates and its
+`script: false` can be laid over the script (`radio.phrasing.load_rules_file`), and
+a template whose placeholders its key can't fill is refused when it loads (stricter
+than v1, which refused only a template that wasn't text, and failed when it picked
+the bad variant). They will
+come from the file `TWR_RADIO_VOICE_FILE` names, once radio takes callouts
+(paddock#56); until then radio speaks the script.
+
+The phrases have no abbreviations: speech splits sentences after any full stop
+and a space, so "Approx. 3 s" would pause mid-sentence. A test keeps it so.
+
 ## The image
 
 `ghcr.io/those-who-run/twr-radio`, built from the [`Dockerfile`](Dockerfile)
