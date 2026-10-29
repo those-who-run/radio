@@ -261,11 +261,22 @@ the user's cache and checked against its sha256 each time the tests run.
 `ghcr.io/those-who-run/twr-radio`, built from the [`Dockerfile`](Dockerfile)
 on every PR by CI's `image / build`, which runs it as its non-root user
 (65532) with a read-only root filesystem, against no NATS and against
-`nats-server -js`. Locally, `make image`. It carries the voice, and its speech
-cache is `/tmp/.cache/twr-radio`: with the read-only root, mount a tmpfs or a
-volume on `/tmp`.
+`nats-server -js` ([`scripts/image_smoke.sh`](scripts/image_smoke.sh)). Locally,
+`make image`. It carries the voice, and its speech cache is
+`/tmp/.cache/twr-radio`: with the read-only root, mount a tmpfs or a volume on
+`/tmp`.
 
 ## Checks
 
 `make check` runs what CI runs; [`AGENTS.md`](AGENTS.md) says what that is and
 what a new clone runs first.
+
+## Releases
+
+Merging the release PR that release-please keeps open tags `vX.Y.Z`, and the
+release workflow builds the image from the tag, runs the same smoke test as
+`image / build`, and publishes that build as
+`ghcr.io/those-who-run/twr-radio:X.Y.Z`, with its provenance and SBOM attested,
+once the maintainer approves it in the `release` environment. The version is
+`pyproject.toml`'s; the release PR moves it, and radio's entry in `uv.lock`
+with it.
