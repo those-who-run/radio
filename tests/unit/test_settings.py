@@ -75,6 +75,7 @@ def test_addresses(addr: str, want: tuple[str, int]) -> None:
         ({"TWR_HEALTH_ADDR": ":70000"}, "TWR_HEALTH_ADDR"),
         ({"TWR_RADIO_CACHE_MAX_MB": "lots"}, "TWR_RADIO_CACHE_MAX_MB"),
         ({"TWR_RADIO_CACHE_MAX_MB": "-1"}, "TWR_RADIO_CACHE_MAX_MB"),
+        ({"TWR_RADIO_CACHE_MAX_MB": "²"}, "TWR_RADIO_CACHE_MAX_MB"),
         ({"TWR_RADIO_VOICE_FILE": "/no/such/voice.yaml"}, "TWR_RADIO_VOICE_FILE"),
     ],
 )

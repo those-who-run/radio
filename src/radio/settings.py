@@ -94,7 +94,7 @@ def from_env(environ: Mapping[str, str]) -> Settings:
     except VoiceError as err:
         raise SettingsError(f"TWR_RADIO_VOICE_FILE: {err}") from err
     max_mb = get("TWR_RADIO_CACHE_MAX_MB") or str(DEFAULT_CACHE_MAX_MB)
-    if not max_mb.isdigit():
+    if not (max_mb.isascii() and max_mb.isdigit()):
         raise SettingsError(f"TWR_RADIO_CACHE_MAX_MB: {max_mb!r} is not a whole number of MiB")
     return Settings(
         nats_url=nats_url,

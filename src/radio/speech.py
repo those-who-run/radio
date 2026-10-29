@@ -241,7 +241,10 @@ class Synthesizer:
         can play while the next is made. A sentence with nothing to say, or no audio,
         gives none. The cache is trimmed to its cap before each clip is given, so a
         clip is kept until the next one is asked for, and no longer if the cap is
-        tight. It blocks while it synthesises: on the event loop, use clips_async."""
+        tight: asking for the next clip may remove the one before it. A sink opens
+        each clip as soon as it is given, before asking for the next (an open file
+        survives its removal); the Discord sink (#58) must. It blocks while it
+        synthesises: on the event loop, use clips_async."""
         for clip in self._clips(text):
             self.cache.trim()  # keeps the most recent: the clip about to be given
             yield clip
