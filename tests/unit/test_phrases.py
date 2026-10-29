@@ -2,9 +2,9 @@
 
 testdata/v1_phrases.json is v1's own rules run on representative values for every
 kind ecu sends, with and without the script, written by scripts/v1_phrases.py.
-testdata/contracts/ holds contracts v0.2.2's callout examples
-(examples/events/v1/callout_*.json, protojson) and testdata/v1/
-suzuka_no_stop_callouts.json, five real v1 callouts with their text, unchanged.
+testdata/contracts/ holds, unchanged, contracts v0.2.2's callout examples
+(examples/events/v1/callout_*.json, protojson) and its
+testdata/v1/suzuka_no_stop_callouts.json, five real v1 callouts with their text.
 """
 
 from __future__ import annotations
@@ -244,6 +244,17 @@ def test_text_is_spoken_as_it_is() -> None:
 def test_a_kind_radio_does_not_know_with_no_text_is_an_error(callout: Callout) -> None:
     with pytest.raises(PhraseError, match="no phrase"):
         Phrases().say(callout)
+
+
+@pytest.mark.parametrize(
+    "template", ["Down to {position.x}.", "Down to {position[x]}.", "Down to {p:d}."]
+)
+def test_a_template_with_a_bad_field_is_an_error(template: str) -> None:
+    """A table built by hand skips the load-time check: say still raises PhraseError."""
+    table = templates()
+    table["position"]["template_lost"] = template
+    with pytest.raises(PhraseError, match=r"position\.template_lost"):
+        Phrases(table).say(Callout("position", "template_lost", CalloutSlots(position=4)))
 
 
 def test_a_template_with_a_placeholder_its_kind_does_not_fill_is_an_error() -> None:

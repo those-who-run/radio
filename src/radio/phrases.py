@@ -149,7 +149,7 @@ class Phrases:
         if callout.kind and phrase is not None:
             try:
                 text = phrase(self._book(callout.rule), callout.kind, callout.slots)
-            except (KeyError, IndexError, ValueError) as err:
+            except (KeyError, IndexError, ValueError, AttributeError, TypeError) as err:
                 raise PhraseError(f"{callout.rule}.{callout.kind}: {err!r}") from err
             if text is not None:
                 return text

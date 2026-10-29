@@ -9,6 +9,7 @@ import string
 from pathlib import Path
 
 import pytest
+import yaml
 
 from radio.phrasing import (
     DEFAULTS,
@@ -18,6 +19,9 @@ from radio.phrasing import (
     load_script,
     templates,
     validate_templates,
+)
+from radio.phrasing import (
+    PLACEHOLDERS as FILLED,
 )
 from radio.verbalise import tidy_sentence
 
@@ -257,3 +261,59 @@ def test_a_rules_file_list_replaces_the_scripts_list(tmp_path: Path) -> None:
     f = tmp_path / "rules.yaml"
     f.write_text("rules:\n  final_lap:\n    template: [Last one., null, One to go.]\n")
     assert load_rules_file(f)["final_lap"]["template"] == ["Last one.", None, "One to go."]
+
+
+def test_radio_fills_the_placeholders_v1_filled() -> None:
+    """The load-time check's table is this test's, less the keys said unformatted."""
+    for rule, keys in PLACEHOLDERS.items():
+        for key, names in keys.items():
+            expected = set() if key in UNFORMATTED.get(rule, set()) else names
+            assert set(FILLED.get(rule, {}).get(key, frozenset())) == expected, (rule, key)
+    for rule, filled in FILLED.items():
+        assert set(filled) <= set(PLACEHOLDERS[rule]), rule
+
+
+# Keys v1 said as they are: a placeholder in one is not filled.
+UNFORMATTED = {
+    "lap_time": {"delta_first", "delta_equal"},
+    "fuel": {
+        "template_critical",
+        "template_pit_next",
+        "template_pit",
+        "template_tight",
+        "template_last_lap_enough",
+    },
+    "final_lap": {"template"},
+    "start_brief": {"template_timed"},
+    "temps": {"template_tyres_cold", "template_water", "template_oil"},
+    "telemetry": {"template_lost", "template_back"},
+}
+
+
+@pytest.mark.parametrize(
+    ("rule", "key", "value"),
+    [
+        ("position", "template_lost", "Down to {position.x}."),
+        ("position", "template_lost", "Down to {position[x]}."),
+        ("position", "template_gained", "Up to {p:d}."),
+        ("position", "template_gained", "Up to {lap}."),
+        ("lap_time", "delta_slower", "{delta} over best on lap {lap}."),
+        ("race_summary", "template_best", "Best lap {time"),
+        ("start_brief", "template_joined", ["Back. Lap {lap}.", "Lap {0}."]),
+    ],
+)
+def test_a_template_with_a_bad_placeholder_is_refused_at_load(
+    tmp_path: Path, rule: str, key: str, value: str | list[str]
+) -> None:
+    f = tmp_path / "rules.yaml"
+    f.write_text(yaml.safe_dump({"rules": {rule: {key: value}}}))
+    with pytest.raises(TemplateError, match=rf"rules\.{rule}\.{key}"):
+        load_rules_file(f)
+
+
+def test_a_placeholder_in_a_phrase_said_as_it_is_is_left_alone(tmp_path: Path) -> None:
+    f = tmp_path / "rules.yaml"
+    f.write_text(
+        "rules:\n  fuel:\n    template_pit: 'Pit {now}.'\n  my_rule:\n    template: '{x.y}'\n"
+    )
+    assert load_rules_file(f)["fuel"]["template_pit"] == "Pit {now}."

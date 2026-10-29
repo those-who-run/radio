@@ -90,6 +90,56 @@ DEFAULTS: dict[str, dict[str, str]] = {
 # rest of a v1 rules file (priorities, thresholds) belongs to ecu, and is ignored.
 TEMPLATE_PREFIXES = ("template", "delta_")
 
+# The placeholders each key is formatted with (v1's tests/test_script.py, with the
+# keys only built-in phrases have). A key not listed is formatted with none: v1
+# spoke fuel's, final_lap's and the alarms' plain phrases unformatted, and a
+# placeholder in one would be said as it is.
+PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
+    "lap_time": {
+        "template": frozenset({"lap", "time", "delta"}),
+        "template_new_best": frozenset({"lap", "time", "gap", "delta"}),
+        "template_new_best_small": frozenset({"lap", "time", "gap", "delta"}),
+        "delta_slower": frozenset({"delta"}),
+        "delta_slower_small": frozenset({"delta"}),
+        "delta_slower_large": frozenset({"delta"}),
+        "delta_faster": frozenset({"delta"}),
+        "template_in_lap": frozenset({"lap", "time"}),
+        "template_out_lap": frozenset({"lap", "time"}),
+        "template_pit_lap": frozenset({"lap", "time"}),
+    },
+    "fuel": {
+        "template": frozenset({"laps"}),
+        "template_short": frozenset({"laps"}),
+    },
+    "position": {
+        key: frozenset({"position", "p"})
+        for key in (
+            "template_gained",
+            "template_gained_lead",
+            "template_gained_podium",
+            "template_lost",
+            "template_lost_lead",
+        )
+    },
+    "start_brief": {
+        "template_track": frozenset({"track"}),
+        "template_laps": frozenset({"laps"}),
+        "template_laps_to_go": frozenset({"laps"}),
+        "template_position": frozenset({"p", "position", "total"}),
+        "template_joined": frozenset({"lap"}),
+        "template_joined_position": frozenset({"p", "position", "total"}),
+    },
+    "race_summary": {
+        "template": frozenset({"position", "best", "fuel"}),
+        "template_position": frozenset({"position", "p"}),
+        "template_position_win": frozenset({"position", "p"}),
+        "template_position_podium": frozenset({"position", "p"}),
+        "template_best": frozenset({"time"}),
+        "template_quit": frozenset({"laps", "best"}),
+    },
+    "temps": {"template_tyre_hot": frozenset({"corners"})},
+}
+
 # Each rule's templates, by key: a string, None (the built-in phrase), or a list of
 # variants.
 Templates = dict[str, dict[str, Any]]
@@ -173,12 +223,31 @@ def validate_templates(rules: Mapping[str, Any]) -> None:
             if not str(key).startswith(TEMPLATE_PREFIXES) or value is None:
                 continue
             if isinstance(value, str):
-                continue
-            if isinstance(value, list) and all(v is None or isinstance(v, str) for v in value):
-                continue
-            raise TemplateError(
-                f"rules.{rule}.{key} must be a string or a list of strings, got {value!r}"
-            )
+                variants = [value]
+            elif isinstance(value, list) and all(v is None or isinstance(v, str) for v in value):
+                variants = [v for v in value if v is not None]
+            else:
+                raise TemplateError(
+                    f"rules.{rule}.{key} must be a string or a list of strings, got {value!r}"
+                )
+            for variant in variants:
+                _check_placeholders(str(rule), str(key), variant)
+
+
+def _check_placeholders(rule: str, key: str, template: str) -> None:
+    """Format template as radio will, every slot it fills a word, so a placeholder
+    its key doesn't fill ("{lap}" in a position phrase) or can't take ("{p.x}",
+    "{p[0]}", "{p:d}") is refused when the templates load, not when it is spoken. A
+    key radio says unformatted, as v1 did, or doesn't phrase from, is left alone."""
+    names = PLACEHOLDERS.get(rule, {}).get(key)
+    if not names:
+        return
+    try:
+        template.format(**dict.fromkeys(names, ""))
+    except (KeyError, IndexError, ValueError, AttributeError, TypeError) as err:
+        raise TemplateError(
+            f"rules.{rule}.{key}: {template!r} can't be filled with {sorted(names)}: {err!r}"
+        ) from err
 
 
 def load_rules_file(path: Path) -> Templates:
