@@ -1,0 +1,17 @@
+{
+  "sessionId": "01JB5N2E8R4T6W9Y1A3C5E7G9H",
+  "id": "01JB5N3A1C2E4G6J8M0P2R4T6V",
+  "rule": "start_brief",
+  "kind": "template",
+  "slots": {
+    "laps": 6,
+    "position": 10,
+    "totalCars": 20
+  },
+  "priority": 8,
+  "at": 1122,
+  "runId": "01JB5N1Z7Q3S5V8X0B2D4F6H8K",
+  "createdAt": "2026-10-15T19:00:18.793056Z",
+  "expiresAt": "2026-10-15T19:00:26.793056Z",
+  "pitLane": "PIT_LANE_HOLD"
+}

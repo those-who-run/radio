@@ -1,0 +1,115 @@
+{
+  "recording": "real-nuc-suzuka-no-stop-2026-10-15.jsonl.gz",
+  "first_frame": {
+    "t": 6682540.915965291,
+    "packet_id": 16258
+  },
+  "callouts": [
+    {
+      "callout": {
+        "text": "Six laps. P ten of twenty.",
+        "priority": 8,
+        "rule": "start_brief",
+        "created_at": 6682559.709021016,
+        "max_age": null,
+        "hold": 0.0,
+        "pit_lane": "hold"
+      },
+      "frame": {
+        "t": 6682559.709021016,
+        "packet_id": 17379,
+        "current_lap": 1,
+        "total_laps": 6,
+        "last_lap_ms": -1,
+        "best_lap_ms": -1,
+        "position": 10,
+        "total_cars": 20
+      }
+    },
+    {
+      "callout": {
+        "text": "Down to twelfth.",
+        "priority": 12,
+        "rule": "position",
+        "created_at": 6682576.004500865,
+        "max_age": null,
+        "hold": 1.0,
+        "pit_lane": "drop"
+      },
+      "frame": {
+        "t": 6682576.004500865,
+        "packet_id": 18357,
+        "current_lap": 1,
+        "total_laps": 6,
+        "last_lap_ms": -1,
+        "best_lap_ms": -1,
+        "position": 12,
+        "total_cars": 20
+      },
+      "previous_position": 10
+    },
+    {
+      "callout": {
+        "text": "Lap two. one oh four point six.",
+        "priority": 20,
+        "rule": "lap_time",
+        "created_at": 6682682.529678978,
+        "max_age": null,
+        "hold": 0.0,
+        "pit_lane": "hold"
+      },
+      "frame": {
+        "t": 6682682.529678978,
+        "packet_id": 24742,
+        "current_lap": 3,
+        "total_laps": 6,
+        "last_lap_ms": 64611,
+        "best_lap_ms": 64611,
+        "position": 7,
+        "total_cars": 20
+      }
+    },
+    {
+      "callout": {
+        "text": "Lap three. one oh three point one. New best by one point five.",
+        "priority": 11,
+        "rule": "lap_time",
+        "created_at": 6682745.724535004,
+        "max_age": null,
+        "hold": 0.0,
+        "pit_lane": "hold"
+      },
+      "frame": {
+        "t": 6682745.724535004,
+        "packet_id": 28530,
+        "current_lap": 4,
+        "total_laps": 6,
+        "last_lap_ms": 63139,
+        "best_lap_ms": 63139,
+        "position": 4,
+        "total_cars": 20
+      }
+    },
+    {
+      "callout": {
+        "text": "Chequered flag. Finished second. Best lap one oh one point two.",
+        "priority": 25,
+        "rule": "race_summary",
+        "created_at": 6682934.4478468,
+        "max_age": 30.0,
+        "hold": 0.0,
+        "pit_lane": "speak"
+      },
+      "frame": {
+        "t": 6682934.4478468,
+        "packet_id": 39842,
+        "current_lap": 7,
+        "total_laps": 6,
+        "last_lap_ms": 63981,
+        "best_lap_ms": 61186,
+        "position": 2,
+        "total_cars": 20
+      }
+    }
+  ]
+}

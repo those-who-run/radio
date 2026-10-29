@@ -1,0 +1,230 @@
+# Carried from those-who-run v1.0.0 (d2cd3739b0237283ed74ab908c71a1d4a2c12455),
+# src/those_who_run/data/script.yaml, unchanged below this header (paddock#90). In
+# v2 radio reads it: ecu sends the rule, the key (kind) and the slots, and radio
+# phrases them (radio.phrases). A change here is a change of v1's words: keep the
+# two in step, or say why not.
+
+# The engineer's script: variants for each callout, one picked at random and
+# never the same twice in a row. Layered over the built-in templates when the
+# rules config has `script: true` (the default); a template in the rules file
+# replaces the script's list for that key. Placeholders are filled with words,
+# never digits. Written 2026-10-15 from a brief, reviewed against what the
+# telemetry actually knows.
+rules:
+  lap_time:
+    template:
+      - "Lap {lap}. {time}. {delta}."
+      - "That is lap {lap}. {time}. {delta}."
+      - "Lap {lap} completed. {time}. {delta}."
+      - "Across the line for lap {lap}. {time}. {delta}."
+      - "Lap {lap} done. {time}. {delta}."
+      - "Lap {lap} time was {time}. {delta}."
+    delta_slower:
+      - "{delta} over best."
+      - "{delta} off your best."
+      - "Lost {delta}."
+      - "Dropped {delta}."
+      - "Slower by {delta}."
+      - "{delta} down on best."
+    delta_slower_small:        # under small_delta_ms (0.3 s)
+      - "{delta} off best."
+      - "Just {delta} away from your best."
+      - "Down {delta}, very close."
+      - "Slower by {delta}, keep it tidy."
+    delta_slower_large:        # over large_delta_ms (2 s)
+      - "{delta} off best."
+      - "Dropped {delta} that time."
+      - "Down {delta}, regroup for this one."
+      - "Slower by {delta}, let's find the rhythm."
+    delta_faster:              # rarely heard: a faster lap is a new best
+      - "{delta} under best."
+      - "{delta} faster."
+      - "Up {delta}."
+      - "Found {delta}."
+      - "Quicker by {delta}."
+    delta_equal:
+      - "equal to best."
+      - "Matched your best."
+      - "Identical to best."
+      - "Dead even with your best lap."
+      - "Pace is consistent, matched best."
+    template_new_best:
+      - "Lap {lap}. {time}. New best by {gap}."
+      - "New best lap. {time}. Improved by {gap}."
+      - "Personal best. {time}. Up {gap}."
+      - "Good lap. {time}. New best by {gap}."
+      - "Quicker that time. {time}. {gap} under."
+      - "Nice work, that is a new best. {time}. Up {gap}."
+    template_new_best_small:   # a gap under small_gap_ms (0.2 s)
+      - "Squeaked a new best. {time}. Up {gap}."
+      - "New best by a hair. {time}. {gap} quicker."
+      - "Marginal improvement. {time}. Up {gap}."
+    template_in_lap:           # a lap that holds a pit stop: no delta, no coaching
+      - "In lap, {time}."
+      - "That is the in lap. {time}."
+      - "In lap done, {time}."
+    template_out_lap:
+      - "Out lap, {time}."
+      - "Out lap done. {time}."
+      - "That was the out lap. {time}."
+    template_pit_lap:          # in and out on one lap
+      - "Pit lap, {time}."
+      - "In and out that lap. {time}."
+  fuel:
+    template:
+      - "Fuel. {laps} remaining."
+      - "We have {laps} of fuel left."
+      - "Calculated fuel is {laps}."
+      - "You have fuel for {laps}."
+      - "Expect {laps} from this tank."
+    template_short:            # the estimate rounded up to {laps}: 2.99 is "just under three laps"
+      - "Fuel. Just under {laps}."
+      - "Just under {laps} of fuel."
+      - "Fuel is just short of {laps}."
+    template_critical:
+      - "Fuel critical. Less than one lap."
+      - "Fuel critical. Empty soon."
+      - "Running on fumes now."
+    template_pit_next:         # the lap after this one is the last the fuel covers
+      - "Box next lap."
+      - "Pit next lap."
+      - "One more lap, then box."
+    template_pit:
+      - "Pit this lap."
+      - "Box this lap. Box."
+      - "Pit this lap. Fuel low."
+      - "In this lap for fuel."
+    template_last_lap_enough:  # final lap starts, a fuel warning was given, the estimate covers it
+      - "Fuel is fine to the end."
+      - "You have the fuel to finish."
+      - "Fuel is safe."
+    template_tight:            # the fuel covers the race by under tight_margin_laps
+      - "Fuel to the flag, just. Save a little."
+      - "Fuel is tight to the flag. Save a little."
+      - "Just enough fuel to the end. Lift a little."
+  final_lap:
+    template:
+      - "Final lap."
+      - "Last lap. Bring it home."
+      - "One lap to go."
+      - "This is the final lap."
+      - "Last lap now."
+  position:
+    template_gained:
+      - "Up to {position}."
+      - "Made a pass. Now {position}."
+      - "Good move. P {p}."
+      - "Moved up to {position}."
+      - "Moving forward. P {p}."
+      - "Taking {position}."
+    template_gained_lead:
+      - "Into the lead."
+      - "You are in first place."
+      - "Leading the race now."
+      - "P one. Control the pace."
+    template_gained_podium:
+      - "Up into the podium places. P {p}."
+      - "Up to {position}. On the podium."
+      - "Moved up to {position}. Good work."
+    template_lost:
+      - "Down to {position}."
+      - "Fell to P {p}."
+      - "Lost ground. Now running {position}."
+      - "Dropped back to {position}."
+      - "Lost out. P {p}."
+    template_lost_lead:
+      - "Lost the lead. Down to {position}."
+      - "Dropped to {position}."
+      - "Fell from first. Now {position}."
+  start_brief:
+    template_track:
+      - "{track}."
+      - "Welcome to {track}."
+      - "Track is {track}."
+      - "Session starting at {track}."
+      - "Ready at {track}."
+    template_laps:
+      - "{laps}."
+      - "Distance is {laps}."
+      - "We are running {laps}."
+      - "Total distance {laps}."
+    template_laps_to_go:
+      - "{laps} to go."
+      - "{laps} left."
+      - "Remaining distance is {laps}."
+    template_timed:
+      - "Timed race."
+      - "Session is timed."
+      - "Timed session underway."
+      - "Clock is running."
+    template_position:
+      - "P {p} of {total}."
+      - "Starting {position} from {total}."
+      - "Grid slot {p} out of {total}."
+      - "Lined up {position} of {total}."
+  race_summary:
+    template:
+      - "Chequered flag. {position} {best}"
+      - "Session complete. {position}. {best}."
+      - "Race over. {position}. {best}."
+      - "That is the flag. {position}. {best}."
+    template_position:
+      - "Finished {position}."
+      - "Crossed the line in {position}."
+      - "Brought it home in P {p}."
+      - "Final classification {position}."
+    template_position_win:
+      - "Finished first. Brilliant drive."
+      - "P one. Fantastic result."
+      - "Winner. Excellent race."
+      - "First place. Great job."
+    template_position_podium:
+      - "Finished {position}. Good podium."
+      - "P {p}. Solid podium finish."
+      - "Crossed the line {position}. Well driven."
+    template_best:
+      - "Best lap {time}."
+      - "Best lap was {time}."
+      - "Quickest lap {time}."
+      - "Your best time was {time}."
+      - "Fastest lap was {time}."
+    template_quit:             # leaving a time trial or practice; {laps} is "Six laps", {best} the best-lap phrase
+      - "Session done. {laps}. {best}"
+      - "That is the session. {laps}. {best}"
+      - "Good session. {laps} in the bag. {best}"
+      - "Calling it there. {laps}. {best}"
+  temps:
+    template_tyre_hot:         # {corners}: "Front left tyre", "Rear tyres", "Front left and rear left tyres", "All tyres"
+      - "{corners} hot."
+      - "{corners} overheating."
+      - "{corners} running hot."
+      - "Heat building. {corners}."
+    template_tyres_cold:
+      - "Tyres cold."
+      - "Tyres are cold."
+      - "Cold tyres all round."
+      - "Careful, tyres not up to temp."
+      - "No heat in the rubber yet."
+    template_water:
+      - "Water temperature high."
+      - "Water is getting hot."
+      - "Engine water is warm, watch it."
+      - "High water temp alert."
+    template_oil:
+      - "Oil temperature high."
+      - "Oil is running hot."
+      - "High oil temp."
+      - "Oil getting hot."
+  telemetry:
+    template_lost:
+      - "Lost telemetry."
+      - "Telemetry lost."
+      - "Data link is down."
+      - "We have lost the feed."
+      - "No data coming through."
+    template_back:
+      - "Telemetry back."
+      - "Telemetry restored."
+      - "Data link back up."
+      - "We have data again."
+      - "Receiving data now."
