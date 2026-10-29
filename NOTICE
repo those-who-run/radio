@@ -1,0 +1,18 @@
+Radio, part of Those Who Run
+Licensed under the GNU General Public License, version 3 only (LICENSE).
+
+The image includes a voice and software from other projects:
+
+- The voice, Piper's en_GB-alba-medium
+  (https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/en/en_GB/alba/medium),
+  fetched at build time and checked against src/radio/voices/SHA256SUMS; this
+  repository holds only its sums. Its model card is in
+  licenses/en_GB-alba-medium.MODEL_CARD. The voice is trained on the Alba speech
+  corpus by Cassia Valentini-Botinhao and Junichi Yamagishi, University of
+  Edinburgh (2019), https://datashare.ed.ac.uk/handle/10283/3270, licensed under
+  the Creative Commons Attribution 4.0 International licence (CC BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/. The model was fine-tuned from
+  Piper's U.S. English lessac voice by the Piper project. Those Who Run uses the
+  voice unchanged.
+- Piper (piper-tts, https://github.com/OHF-Voice/piper1-gpl), GPL-3.0: the
+  speech synthesis.

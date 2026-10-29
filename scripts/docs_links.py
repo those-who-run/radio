@@ -32,9 +32,10 @@ from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parent.parent
 SKIP = {"CHANGELOG.md"}
-# Not the repository's own Markdown: git's internals, and Claude Code's worktrees,
-# which are other checkouts.
-SKIP_DIRS = {".git", ".claude"}
+# Not the repository's own Markdown: git's internals, Claude Code's worktrees,
+# which are other checkouts, and the virtual environment's packages, which
+# `make venv` writes into .venv/ (onnxruntime ships Markdown with links of its own).
+SKIP_DIRS = {".git", ".claude", ".venv"}
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 CODE_SPAN = re.compile(r"(`+)(?:(?!\1).)+?\1")

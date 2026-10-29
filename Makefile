@@ -13,6 +13,10 @@ RUN := uv run --no-sync
 # ci.yml passes to python.yml and pyproject.toml's fail_under
 # (tests/test_python_floor.py keeps the three equal).
 COVERAGE_FLOOR := 90
+# The Piper voice, as v1: fetched from the pinned rhasspy/piper-voices release and
+# checked against src/radio/voices/SHA256SUMS, which the Dockerfile checks too.
+VOICE     := en_GB-alba-medium
+VOICE_URL := https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alba/medium
 
 .PHONY: help
 help:
@@ -21,6 +25,8 @@ help:
 	@echo "venv      - install the project and its tools from uv.lock into .venv"
 	@echo "python    - the Python checks, as CI's python / check runs them: lock, format, lint, types, py-test"
 	@echo "py-test   - the package's tests under coverage, with the floor; a skipped test fails"
+	@echo "voice     - fetch the Piper voice into voices/ and check its sha256"
+	@echo "voice-test - the synthesiser with the real voice (make voice first, or TWR_RADIO_VOICE_MODEL); not in make check"
 	@echo "fmt       - format and fix the Python code with ruff"
 	@echo "lock      - re-resolve uv.lock after changing pyproject.toml"
 	@echo "run       - run radio locally, text logs (TWR_NATS_URL and the rest from the environment)"
@@ -57,6 +63,23 @@ python:
 py-test:
 	$(RUN) coverage run -m pytest -rs
 	$(RUN) coverage report --fail-under=$(COVERAGE_FLOOR)
+
+# A file already there is checked, not fetched again; one that fails its sum is removed.
+.PHONY: voice
+voice:
+	mkdir -p voices
+	cd voices && for f in $(VOICE).onnx $(VOICE).onnx.json; do \
+		test -f $$f || curl -fsSL -o $$f $(VOICE_URL)/$$f || exit 1; \
+	done
+	cd voices && grep -E ' $(VOICE)\.onnx(\.json)?$$' ../src/radio/voices/SHA256SUMS | sha256sum -c --strict - \
+		|| { rm -f $(VOICE).onnx $(VOICE).onnx.json; exit 1; }
+
+# Opt in: CI has no model, and a skipped test fails `make check`, so this test lives
+# outside tests/unit/ and runs only here, against TWR_RADIO_VOICE_MODEL.
+TWR_RADIO_VOICE_MODEL ?= $(CURDIR)/voices/$(VOICE).onnx
+.PHONY: voice-test
+voice-test:
+	TWR_RADIO_VOICE_MODEL=$(TWR_RADIO_VOICE_MODEL) $(RUN) pytest tests/voice -p no:cacheprovider
 
 .PHONY: fmt
 fmt:
