@@ -331,3 +331,192 @@ def test_no_phrase_holds_an_abbreviation() -> None:
         for key, variants in keys.items():
             for variant in variants:
                 assert not ABBREVIATION.search(variant), (rule, key, variant)
+
+
+FL, FR, RL, RR = Corner.FRONT_LEFT, Corner.FRONT_RIGHT, Corner.REAR_LEFT, Corner.REAR_RIGHT
+
+# The sentences the rule issues quote (paddock#91 to #98), with the kind and slots
+# ecu sends for each, said with v1's built-in phrases (`script: false`), as their
+# recordings were checked in v1. ecu's rules (#89 on) take these as the words their
+# callouts must give. #91's summary capitalises "One forty-one point zero" and "One
+# point five"; v1 says them in lower case, as here. #95's AC5 names the circuit as
+# GT7 writes it; v1 says "Spa Francorchamps", without the hyphen.
+ISSUE_QUOTES: list[tuple[str, Callout, str]] = [
+    # #91 lap_time
+    (
+        "#91",
+        Callout(
+            "lap_time", "delta_slower", CalloutSlots(lap=3, lap_time_ms=101_000, delta_ms=1500)
+        ),
+        "Lap three. one forty-one point zero. one point five over best.",
+    ),
+    (
+        "#91",
+        Callout("lap_time", "delta_first", CalloutSlots(lap=1, lap_time_ms=57_100)),
+        "Lap one. fifty-seven point one.",
+    ),
+    (
+        "#91",
+        Callout("lap_time", "template_in_lap", CalloutSlots(lap=3, lap_time_ms=82_500)),
+        "In lap, one twenty-two point five.",
+    ),
+    (
+        "#91",
+        Callout("lap_time", "template_out_lap", CalloutSlots(lap=4, lap_time_ms=69_900)),
+        "Out lap, one oh nine point nine.",
+    ),
+    (
+        "#91",
+        Callout(
+            "lap_time", "template_new_best", CalloutSlots(lap=5, lap_time_ms=59_500, delta_ms=-1000)
+        ),
+        "Lap five. fifty-nine point five. New best by one point zero.",
+    ),
+    (
+        "#91",
+        Callout("lap_time", "delta_first", CalloutSlots(lap=1, lap_time_ms=51_000)),
+        "Lap one. fifty-one point zero.",
+    ),
+    (
+        "#91",
+        Callout("lap_time", "delta_first", CalloutSlots(lap=2, lap_time_ms=53_100)),
+        "Lap two. fifty-three point one.",
+    ),
+    (
+        "#91",  # AC5: 0.04 s slower in the raw times, equal in tenths
+        Callout("lap_time", "delta_equal", CalloutSlots(lap=4, lap_time_ms=60_040, delta_ms=40)),
+        "Lap four. one oh zero point zero. equal to best.",
+    ),
+    # #92 fuel
+    ("#92", Callout("fuel", "template", CalloutSlots(laps=3)), "Fuel. three laps remaining."),
+    ("#92", Callout("fuel", "template_pit_next"), "Box next lap."),
+    ("#92", Callout("fuel", "template", CalloutSlots(laps=2)), "Fuel. two laps remaining."),
+    ("#92", Callout("fuel", "template_pit"), "Pit this lap."),
+    ("#92", Callout("fuel", "template_critical"), "Fuel critical. Less than one lap."),
+    (
+        "#92",
+        Callout("fuel", "template_short", CalloutSlots(laps=3)),
+        "Fuel. Just under three laps.",
+    ),
+    ("#92", Callout("fuel", "template_tight"), "Fuel to the flag, just. Save a little."),
+    ("#92", Callout("fuel", "template_last_lap_enough"), "Fuel is fine to the end."),
+    # #93 final_lap
+    ("#93", Callout("final_lap", "template"), "Final lap."),
+    # #94 position
+    *[
+        (
+            "#94",
+            Callout(
+                "position",
+                "template_gained" if pos < was else "template_lost",
+                CalloutSlots(position=pos, previous_position=was),
+            ),
+            text,
+        )
+        for was, pos, text in [
+            (7, 6, "Up to sixth."),
+            (12, 18, "Down to eighteenth."),
+            (10, 9, "Up to ninth."),
+            (9, 8, "Up to eighth."),
+            (8, 7, "Up to seventh."),
+            (18, 20, "Down to twentieth."),
+            (5, 10, "Down to tenth."),
+        ]
+    ],
+    # #95 start_brief
+    (
+        "#95",
+        Callout(
+            "start_brief",
+            "template",
+            CalloutSlots(track="Sportsland SUGO", laps=2, position=10, total_cars=20),
+        ),
+        "Sportsland SUGO. Two laps. P ten of twenty.",
+    ),
+    (
+        "#95",
+        Callout("start_brief", "template", CalloutSlots(laps=2, position=10, total_cars=20)),
+        "Two laps. P ten of twenty.",
+    ),
+    (
+        "#95",
+        Callout("start_brief", "template_joined", CalloutSlots(lap=7)),
+        "Back with you. Lap seven.",
+    ),
+    (
+        "#95",
+        Callout("start_brief", "template_joined", CalloutSlots(lap=7, position=1, total_cars=16)),
+        "Back with you. Lap seven. P one.",
+    ),
+    (
+        "#95",
+        Callout("start_brief", "template", CalloutSlots(timed=True, position=1, total_cars=20)),
+        "Timed race. P one of twenty.",
+    ),
+    (
+        "#95",
+        Callout("start_brief", "template_track", CalloutSlots(track="Nurburgring 24h")),
+        "Nurburgring twenty-four hour.",
+    ),
+    (
+        "#95",
+        Callout(
+            "start_brief",
+            "template_joined",
+            CalloutSlots(lap=5, laps=12, position=7, total_cars=20),
+        ),
+        "Back with you. Lap five of twelve. P seven.",
+    ),
+    (
+        "#95",
+        Callout(
+            "start_brief", "template_track", CalloutSlots(track="Circuit de Spa-Francorchamps")
+        ),
+        "Circuit de Spa Francorchamps.",
+    ),
+    # #96 race_summary
+    (
+        "#96",
+        Callout("race_summary", "template_position", CalloutSlots(position=6, best_lap_ms=53_100)),
+        "Chequered flag. Finished sixth. Best lap fifty-three point one.",
+    ),
+    (
+        "#96",
+        Callout("race_summary", "template_quit", CalloutSlots(laps=7, best_lap_ms=49_700)),
+        "Session done. Seven laps. Best lap forty-nine point seven.",
+    ),
+    (
+        "#96",
+        Callout(
+            "race_summary", "template_position_win", CalloutSlots(position=1, best_lap_ms=59_500)
+        ),
+        "Chequered flag. Finished first. Best lap fifty-nine point five.",
+    ),
+    # #97 temps
+    (
+        "#97",
+        Callout("temps", "template_tyre_hot", CalloutSlots(corners=(RL, RR))),
+        "Rear tyres hot.",
+    ),
+    (
+        "#97",
+        Callout("temps", "template_tyre_hot", CalloutSlots(corners=(FL, RL))),
+        "Front left and rear left tyres hot.",
+    ),
+    (
+        "#97",
+        Callout("temps", "template_tyre_hot", CalloutSlots(corners=(FL, FR, RL, RR))),
+        "All tyres hot.",
+    ),
+    # #98 telemetry
+    ("#98", Callout("telemetry", "template_lost"), "Lost telemetry."),
+    ("#98", Callout("telemetry", "template_back"), "Telemetry back."),
+]
+
+
+@pytest.mark.parametrize(
+    ("issue", "callout", "text"), ISSUE_QUOTES, ids=[f"{i}-{t}" for i, _, t in ISSUE_QUOTES]
+)
+def test_the_rule_issues_quotes(issue: str, callout: Callout, text: str) -> None:
+    """paddock#90's triage: the spoken text #91 to #98 quote is checked here."""
+    assert Phrases(templates(script=False)).say(callout) == text
