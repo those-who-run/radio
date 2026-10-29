@@ -5,7 +5,7 @@ version = "0.0.0"
 description = "The voice engineer of Those Who Run v2: callouts from NATS spoken in Discord"
 readme = "README.md"
 license = "GPL-3.0-only"
-requires-python = ">=3.15"
+requires-python = ">=3.14"
 dependencies = [
   "nats-py==2.16.0", # the NATS client (paddock#55: the stable one, asyncio)
 ]
@@ -33,7 +33,7 @@ required-version = ">=0.13"
 
 [tool.ruff]
 line-length = 100
-target-version = "py315"
+target-version = "py314"
 # The package and its tests. The scripts in scripts/ and the unittest tests beside
 # them in tests/ are copies from paddock and .github, kept as they are there.
 include = ["src/**/*.py", "tests/unit/**/*.py"]

@@ -35,7 +35,10 @@ pins a behaviour where one applies.
   (pytest). The tests beside them in `tests/` are the repository's own checks
   (unittest, standard library only), copied from paddock and `.github`; ruff
   and mypy leave them and `scripts/` alone.
-- Python is the version in `.python-version`, 3.15. uv manages the
+- Python is the version in `.python-version`, 3.14 for now: Piper needs
+  onnxruntime, which has no wheel for 3.15 yet
+  ([microsoft/onnxruntime#33271](https://github.com/microsoft/onnxruntime/issues/33271)),
+  and `renovate.json` holds Python below 3.15 until it has. uv manages the
   environment: dependencies are declared in `pyproject.toml` and locked in
   `uv.lock`, never installed by hand. After changing `pyproject.toml`, run
   `make lock` and commit both. `make venv` installs `.venv` from the lock.
