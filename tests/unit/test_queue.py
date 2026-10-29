@@ -21,6 +21,10 @@ class Delivery:
     async def ack(self) -> None:
         self.acks += 1
 
+    async def ack_sync(self, timeout: float = 1.0) -> object:
+        await self.ack()
+        return None
+
 
 class Clock:
     def __init__(self) -> None:

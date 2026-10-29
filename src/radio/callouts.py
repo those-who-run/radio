@@ -23,7 +23,11 @@ it was in, `queued` (which covers the wait while another plays), `connecting` or
 the next is still spoken (R7).
 
 Acking (R6). A callout is acked when radio starts to say it, or when it is dropped,
-so a radio that dies mid-sentence never says it again. One taken and not yet said
+so a radio that dies mid-sentence never says it again. The ack before speaking
+waits for the server to take it (a double ack), so a connection that drops right
+then doesn't bring the callout back to a restarted radio; if that ack fails, radio
+logs it and speaks anyway, and remembers the callout, so this radio never says it
+twice. One taken and not yet said
 is redelivered after ACK_WAIT; radio knows it by its stream sequence and keeps the
 one it holds, so a redelivery is never said twice, and after a restart it is said
 once, or dropped if it expired meanwhile.
@@ -76,6 +80,8 @@ REFETCH = 1.0
 # How long radio waits before it tries the consumers again, when the stream
 # isn't there yet or NATS is down.
 RETRY_WAIT = 2.0
+# How long radio waits for the server to take the ack before it speaks.
+ACK_SYNC_WAIT = 1.0
 # How many said or dropped callouts radio remembers, so a late redelivery of one
 # is acked and never said again.
 REMEMBER = 4096
@@ -259,7 +265,7 @@ class Callouts[C]:
                 if p.stale(self.clock()):
                     await self._drop(p, SYNTHESIS)
                     return
-                await self._settle(p)
+                await self._settle(p, sync=True)
                 await self.sink.play(clip, p)
                 self.said += 1
             finally:
@@ -288,13 +294,14 @@ class Callouts[C]:
         self.logger.warning("callout dropped", extra={**_about(p), "stage": stage})
         await self._settle(p)
 
-    async def _settle(self, p: Pending) -> None:
-        """Ack it, once: said or dropped."""
+    async def _settle(self, p: Pending, sync: bool = False) -> None:
+        """Ack it, once: said or dropped. sync waits for the server to take the ack
+        (a double ack), as radio does before it speaks."""
         if p.seq in self._settled:
             return
         self._held.pop(p.seq, None)
         self._remember(p.seq)
-        await _ack(p.delivery, self.logger)
+        await _ack(p.delivery, self.logger, sync)
 
     def _remember(self, seq: int) -> None:
         self._settled[seq] = None
@@ -307,9 +314,12 @@ def _about(p: Pending) -> dict[str, Any]:
     return {"id": c.id, "rule": c.rule, "priority": c.priority, "text": p.text}
 
 
-async def _ack(delivery: Delivery, logger: logging.Logger) -> None:
+async def _ack(delivery: Delivery, logger: logging.Logger, sync: bool = False) -> None:
     try:
-        await delivery.ack()
+        if sync:
+            await delivery.ack_sync(timeout=ACK_SYNC_WAIT)
+        else:
+            await delivery.ack()
     except Exception as err:  # Redelivered later, and acked then.
         logger.warning("callout ack", extra={"err": _err(err)})
 

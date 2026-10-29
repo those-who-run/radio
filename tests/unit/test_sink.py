@@ -13,6 +13,10 @@ class Delivery:
     async def ack(self) -> None:
         return None
 
+    async def ack_sync(self, timeout: float = 1.0) -> object:
+        await self.ack()
+        return None
+
 
 async def test_the_log_sink_logs_what_it_would_say(log: io.StringIO) -> None:
     sink = LogSink(logging.getLogger("radio"))

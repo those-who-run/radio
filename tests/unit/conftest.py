@@ -41,7 +41,7 @@ def log() -> Iterator[io.StringIO]:
 @pytest.fixture(scope="session")
 def nats_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[NATSServer]:
     """A real nats-server -js, shared by the tests."""
-    server = NATSServer(tmp_path_factory.mktemp("jetstream"))
+    server = NATSServer(tmp_path_factory.mktemp("nats"))
     server.start()
     yield server
     server.stop()

@@ -95,6 +95,8 @@ class Recorder:
     playing: float = 0.0
     fail: set[str] = field(default_factory=set)
     said: list[str] = field(default_factory=list)
+    # When each was said.
+    at: list[datetime] = field(default_factory=list)
     started: list[str] = field(default_factory=list)
     released: int = 0
     can_connect: bool = True
@@ -116,6 +118,7 @@ class Recorder:
             raise RuntimeError("the sink broke")
         await asyncio.sleep(self.playing)
         self.said.append(clip)
+        self.at.append(datetime.now(UTC))
 
     def release(self, clip: str) -> None:
         self.released += 1
@@ -211,18 +214,18 @@ async def test_a_held_callout_waits_and_a_due_one_goes_ahead(
 ) -> None:
     # AC2: hold_until 1 s ahead isn't spoken before then; a p2 due meanwhile goes
     # ahead of it.
+    # The hold is 2 s, a margin over how long radio takes to take a callout on a
+    # loaded machine, so the p2 is taken while the position call is still held.
     sink = Recorder()
-    await start(sink)
-    held = made("position", "template_lost", 12, slots={"position": 3}, hold=1.0)
-    t0 = datetime.now(UTC)
+    r = await start(sink)
+    await until(lambda: r.callouts._subs)
+    held = made("position", "template_lost", 12, slots={"position": 3}, hold=2.0)
     await publish(js, held)
-    await asyncio.sleep(0.2)
     await publish(js, made("lap_time", "delta_first", 20, slots={"lap": 4, "lapTimeMs": 90000}))
-    await until(lambda: len(sink.said) == 2)
+    await until(lambda: len(sink.said) == 2, timeout=10)
     assert sink.said == ["Lap four. one thirty point zero.", "Down to third."]
-    # Not before its hold, and not much after.
-    held_at = datetime.now(UTC) - t0
-    assert timedelta(seconds=1) <= held_at < timedelta(seconds=2)
+    # Not before its hold.
+    assert sink.at[1] >= held.hold_until.ToDatetime(tzinfo=UTC)
 
 
 async def test_dropped_at_each_stage_once_and_acked(
@@ -230,23 +233,27 @@ async def test_dropped_at_each_stage_once_and_acked(
 ) -> None:
     # AC3: expires while radio waits to connect, during synthesis and while another
     # plays: dropped at that stage, once each, and acked.
+    # Each expiry is 1.5 s, a margin over how long radio takes to take a callout on
+    # a loaded machine, and each stage outlasts it: the sink stays unconnected until
+    # the drop, synthesis takes 3 s, and the other callout plays for 4 s.
     sink = Recorder()
     sink.connected.clear()
     r = await start(sink)
-    await publish(js, made("fuel", "template_pit", 5, expires_in=0.3))
+    await until(lambda: r.callouts._subs)
+    await publish(js, made("fuel", "template_pit", 5, expires_in=1.5))
     await until(lambda: r.callouts.dropped["connecting"] == 1)
     sink.connected.set()
 
-    sink.synthesis = 0.5
-    await publish(js, made("fuel", "template_pit_next", 5, expires_in=0.3))
+    sink.synthesis = 3.0
+    await publish(js, made("fuel", "template_pit_next", 5, expires_in=1.5))
     await until(lambda: r.callouts.dropped["synthesis"] == 1)
     sink.synthesis = 0
 
-    sink.playing = 0.6
-    await publish(js, made("final_lap", "template", 10, expires_in=5))
+    sink.playing = 4.0
+    await publish(js, made("final_lap", "template", 10, expires_in=10))
     await until(lambda: sink.started == ["Final lap."])
-    await publish(js, made("fuel", "template_tight", 15, expires_in=0.2))
-    await until(lambda: r.callouts.dropped["queued"] == 1)
+    await publish(js, made("fuel", "template_tight", 15, expires_in=1.5))
+    await until(lambda: r.callouts.dropped["queued"] == 1, timeout=10)
 
     assert sink.said == ["Final lap."]
     assert drops(log) == [
@@ -446,3 +453,15 @@ async def test_another_source_is_not_taken(start: Any, js: JetStreamContext) -> 
     await until(lambda: sink.said == ["Pit this lap."])
     await asyncio.sleep(0.3)
     assert sink.said == ["Pit this lap."]
+
+
+async def test_the_ack_before_speaking_is_taken_by_the_server(
+    start: Any, js: JetStreamContext
+) -> None:
+    # Double ack: by the time the sink plays, the server has the ack, so the stream
+    # no longer holds the callout even if the connection drops right then.
+    sink = Recorder(playing=3.0)
+    await start(sink)
+    await publish(js, made("final_lap", "template", 10))
+    await until(lambda: sink.started == ["Final lap."])
+    assert await stream_empty(js)

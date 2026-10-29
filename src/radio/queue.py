@@ -42,6 +42,8 @@ class Delivery(Protocol):
 
     async def ack(self) -> None: ...
 
+    async def ack_sync(self, timeout: float = 1.0) -> object: ...
+
 
 def _time(m: callout_pb2.Callout, name: str) -> datetime | None:
     if not m.HasField(name):

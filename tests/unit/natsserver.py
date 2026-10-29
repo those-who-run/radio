@@ -1,9 +1,10 @@
 """A real nats-server -js for the tests (paddock#56: never a mock of NATS).
 
 The binary is the one TWR_NATS_SERVER names, else `nats-server` on the PATH, else
-the release below, fetched from nats-io's GitHub release once into the user's
-cache and checked against its sha256 from the release's SHA256SUMS: the same
-version as the image smoke test's (image.yml).
+the release below: its archive fetched from nats-io's GitHub release once into the
+user's cache, checked against its sha256 from the release's SHA256SUMS on every
+run, and unpacked for the run. The same version as the image smoke test's
+(image.yml).
 """
 
 from __future__ import annotations
@@ -35,31 +36,35 @@ def _platform() -> str:
     return f"{platform.system().lower()}-{arch.get(platform.machine().lower(), '')}"
 
 
-def binary() -> Path:
-    """The nats-server to run, fetched the first time when there is none."""
+def binary(dest: Path) -> Path:
+    """The nats-server to run. Without one named or on the PATH, the pinned release's
+    archive, cached in the user's cache and checked against its sha256 every time,
+    fetched again when it is missing or fails, and its binary unpacked into dest."""
     if named := os.environ.get("TWR_NATS_SERVER"):
         return Path(named)
     if found := shutil.which("nats-server"):
         return Path(found)
     plat = _platform()
-    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "twr-radio-tests"
-    path = cache / f"nats-server-v{VERSION}-{plat}"
-    if path.exists():
-        return path
     if plat not in SUMS:
         raise RuntimeError(f"no nats-server {VERSION} for {plat}: set TWR_NATS_SERVER")
-    with urllib.request.urlopen(URL.format(v=VERSION, p=plat), timeout=60) as r:
-        data = r.read()
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "twr-radio-tests"
+    archive = cache / f"nats-server-v{VERSION}-{plat}.tar.gz"
+    data = archive.read_bytes() if archive.exists() else b""
     if hashlib.sha256(data).hexdigest() != SUMS[plat]:
-        raise RuntimeError(f"nats-server {VERSION} for {plat} fails its sha256")
+        with urllib.request.urlopen(URL.format(v=VERSION, p=plat), timeout=60) as r:
+            data = r.read()
+        if hashlib.sha256(data).hexdigest() != SUMS[plat]:
+            raise RuntimeError(f"nats-server {VERSION} for {plat} fails its sha256")
+        cache.mkdir(parents=True, exist_ok=True)
+        tmp = cache / f"{archive.name}.{os.getpid()}"
+        tmp.write_bytes(data)
+        tmp.replace(archive)
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
         member = tar.extractfile(f"nats-server-v{VERSION}-{plat}/nats-server")
         assert member is not None
-        cache.mkdir(parents=True, exist_ok=True)
-        tmp = path.parent / f"{path.name}.{os.getpid()}"
-        tmp.write_bytes(member.read())
-    tmp.chmod(0o755)
-    tmp.replace(path)
+        path = dest / "nats-server"
+        path.write_bytes(member.read())
+    path.chmod(0o755)
     return path
 
 
@@ -70,10 +75,11 @@ def free_port() -> int:
 
 
 class NATSServer:
-    """nats-server -js on a free port, its store in store_dir."""
+    """nats-server -js on a free port, its store and binary in work_dir."""
 
-    def __init__(self, store_dir: Path) -> None:
-        self.store_dir = store_dir
+    def __init__(self, work_dir: Path) -> None:
+        self.work_dir = work_dir
+        self.store_dir = work_dir / "jetstream"
         self.port = free_port()
         self.proc: subprocess.Popen[bytes] | None = None
 
@@ -83,7 +89,7 @@ class NATSServer:
 
     def start(self) -> None:
         self.proc = subprocess.Popen(
-            [str(binary()), "-js", "-a", "127.0.0.1", "-p", str(self.port)]
+            [str(binary(self.work_dir)), "-js", "-a", "127.0.0.1", "-p", str(self.port)]
             + ["-sd", str(self.store_dir)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

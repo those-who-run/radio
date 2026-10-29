@@ -134,9 +134,9 @@ The speaking side is a sink (`radio.sink.Sink`: connect, prepare, play). For now
 radio logs each callout it would say (`speaking`); the console and Discord sinks
 come with paddock#60 and #58.
 
-The tests run against a real `nats-server -js`: `nats-server` on the `PATH`, the
-binary `TWR_NATS_SERVER` names, or else the pinned release the tests fetch once
-into the user's cache and check against its sha256.
+The tests run against a real `nats-server -js`: the binary `TWR_NATS_SERVER`
+names, else `nats-server` on the `PATH`, else the pinned release, fetched once into
+the user's cache and checked against its sha256 each time the tests run.
 
 ## The image
 
