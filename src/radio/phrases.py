@@ -73,6 +73,31 @@ CORNER_NAMES = {
 }
 
 
+# The slots each kind's sentence says, by rule and kind (callout.proto's list): one
+# that is not set is not said, which leaves a broken sentence ("Fuel. remaining."),
+# so radio warns that ecu sent less than its kind needs (`missing`). A slot the
+# sentence can do without (the brief's parts, race_summary's best, template_joined's
+# laps) or that radio doesn't say (position's previous_position) isn't listed.
+NEEDS: dict[tuple[str, str], tuple[str, ...]] = {
+    **{("lap_time", k): ("lap", "lap_time_ms") for k in (*PIT_LAPS, "delta_first")},
+    **{("lap_time", k): ("lap", "lap_time_ms", "delta_ms") for k in (*DELTAS[1:], *NEW_BESTS)},
+    ("fuel", "template"): ("laps",),
+    ("fuel", "template_short"): ("laps",),
+    **{("position", k): ("position",) for k in (*GAINED, *LOST)},
+    ("start_brief", "template_track"): ("track",),
+    ("start_brief", "template_joined"): ("lap",),
+    **{("race_summary", k): ("position",) for k in FINISHED[1:]},
+    ("race_summary", "template_quit"): ("laps",),
+    ("temps", "template_tyre_hot"): ("corners",),
+}
+
+
+def missing(callout: Callout) -> list[str]:
+    """The slots callout's kind says that it doesn't set (`NEEDS`)."""
+    needs = NEEDS.get((callout.rule, callout.kind), ())
+    return [name for name in needs if getattr(callout.slots, name) in (None, "", ())]
+
+
 class PhraseError(ValueError):
     """A callout radio can't phrase: a rule or kind it doesn't know, with no text, or
     a template with a placeholder its kind doesn't fill."""

@@ -16,9 +16,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from google.protobuf import json_format
+from twr.events.v1 import callout_pb2, car_pb2
 
-from radio.callout import Callout, CalloutSlots, Corner
-from radio.phrases import FALLBACK, PhraseError, Phrases, corners_phrase
+from radio.callout import Callout, CalloutSlots, Corner, from_message
+from radio.phrases import FALLBACK, NEEDS, PhraseError, Phrases, corners_phrase, missing
 from radio.phrasing import DEFAULTS, load_script, templates
 from radio.speech import split_sentences
 
@@ -520,3 +522,36 @@ ISSUE_QUOTES: list[tuple[str, Callout, str]] = [
 def test_the_rule_issues_quotes(issue: str, callout: Callout, text: str) -> None:
     """paddock#90's triage: the spoken text #91 to #98 quote is checked here."""
     assert Phrases(templates(script=False)).say(callout) == text
+
+
+def test_from_message_reads_unset_slots_as_none() -> None:
+    m = callout_pb2.Callout()
+    json_format.Parse((CONTRACTS / "callout_position.json").read_text(), m)
+    m.slots.corners.extend([car_pb2.CORNER_REAR_LEFT, car_pb2.CORNER_REAR_RIGHT])
+    m.slots.corners.append(9)  # type: ignore[arg-type]
+    view = from_message(m)
+    assert view == Callout(
+        "position",
+        "template_lost",
+        CalloutSlots(
+            position=12, previous_position=10, corners=(Corner.REAR_LEFT, Corner.REAR_RIGHT)
+        ),
+    )
+    zero = callout_pb2.Callout(rule="fuel", kind="template")
+    zero.slots.laps = 0
+    assert from_message(zero).slots.laps == 0, "set to 0 is not unset"
+
+
+def test_missing_names_the_slots_a_kind_says() -> None:
+    assert missing(Callout("fuel", "template")) == ["laps"]
+    assert missing(Callout("fuel", "template", CalloutSlots(laps=0))) == []
+    assert missing(Callout("lap_time", "delta_slower", CalloutSlots(lap=3))) == [
+        "lap_time_ms",
+        "delta_ms",
+    ]
+    assert missing(Callout("temps", "template_tyre_hot")) == ["corners"]
+    assert missing(Callout("start_brief", "template")) == []
+    assert missing(Callout("", "", text="Radio check.")) == []
+    # Every kind it lists is one radio phrases.
+    for rule, kind in NEEDS:
+        assert kind in KINDS[rule], (rule, kind)

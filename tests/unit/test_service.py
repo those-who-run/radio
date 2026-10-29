@@ -4,16 +4,20 @@ import logging
 
 import pytest
 from helpers import FakeNATS, get, lines, until
+from nats.js.client import JetStreamContext
+from natsserver import NATSServer
+from test_callouts import made, publish
 
-from radio import service
+from radio import callouts, service
+from radio.phrasing import templates
 from radio.service import Radio, redacted
 from radio.settings import Settings
 
 
-def radio(url: str, log: io.StringIO) -> Radio:
+def radio(url: str, log: io.StringIO, src: str = "live") -> Radio:
     """A Radio on url, logging to log (the fixture's lines), its /healthz on a free port."""
     return Radio(
-        Settings(nats_url=url, health_host="127.0.0.1", health_port=0),
+        Settings(nats_url=url, health_host="127.0.0.1", health_port=0, src=src),
         "1.2.3",
         logging.getLogger("radio"),
     )
@@ -137,3 +141,34 @@ async def test_an_error_is_logged_without_credentials(log: io.StringIO) -> None:
 
 def test_redacted() -> None:
     assert redacted("nats://u:p@a:4222, nats://b:4222") == "a:4222,nats://b:4222"
+
+
+async def test_speaks_the_sources_callouts(
+    nats_server: NATSServer, js: JetStreamContext, log: io.StringIO
+) -> None:
+    r = radio(nats_server.url, log, src="svc")
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+    await until(lambda: "callouts: taking" in msgs(log))
+    await publish(js, made("final_lap", "template", 10), src="svc")
+    await until(lambda: "speaking" in msgs(log))
+    [said] = [x for x in lines(log) if x["msg"] == "speaking"]
+    # Phrased with the script, which has variants.
+    assert (said["rule"], said["kind"]) == ("final_lap", "template")
+    assert said["text"] in templates()["final_lap"]["template"]
+    stop.set()
+    await asyncio.wait_for(task, 10)
+    assert msgs(log)[-1] == "stopped"
+
+
+async def test_callouts_that_fail_stop_radio(
+    fake_nats: FakeNATS, log: io.StringIO, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken(self: object) -> None:
+        raise RuntimeError("broken")
+
+    monkeypatch.setattr(callouts.Callouts, "run", broken)
+    r = radio(fake_nats.url, log)
+    with pytest.raises(RuntimeError, match="broken"):
+        await asyncio.wait_for(r.run(asyncio.Event()), 10)
+    assert msgs(log)[-1] == "stopped"

@@ -1,5 +1,6 @@
-"""radio's service: serve GET /healthz, connect to NATS, log "ready", and run until
-it is told to stop, then drain the connection and close the server.
+"""radio's service: serve GET /healthz, connect to NATS, log "ready", take and speak
+the source's callouts (radio.callouts) until it is told to stop, then drain the
+connection and close the server.
 
 NATS may not be up when radio starts, as in a pod whose server starts beside it, so
 the first connection is retried until it succeeds or radio stops, with a `nats
@@ -16,8 +17,11 @@ import logging
 
 from nats.aio.client import Client
 
+from radio.callouts import Callouts
 from radio.health import HealthServer
+from radio.phrases import Phrases
 from radio.settings import Settings
+from radio.sink import LogSink
 
 # How long nats-py waits between attempts at a server, at the first connection and
 # after a drop.
@@ -95,13 +99,33 @@ class Radio:
             await connecting
         return False
 
+    async def speak(self, stop: asyncio.Event) -> None:
+        """Take and speak callouts until stop is set. Callouts that fail stop radio."""
+        assert self.nc is not None
+        callouts = Callouts(
+            self.nc,
+            self.settings.src,
+            Phrases(self.settings.templates),
+            LogSink(self.logger),
+            self.logger,
+        )
+        speaking = asyncio.ensure_future(callouts.run())
+        stopping = asyncio.ensure_future(stop.wait())
+        await asyncio.wait({speaking, stopping}, return_when=asyncio.FIRST_COMPLETED)
+        stopping.cancel()
+        if speaking.done():
+            speaking.result()  # It runs until cancelled, so this raises.
+        speaking.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await speaking
+
     async def run(self, stop: asyncio.Event) -> None:
         """Serve and connect until stop is set, then shut down cleanly."""
         await self.health.start()
         try:
             if await self.connect(stop):
                 self.logger.info("ready", extra={"nats": redacted(self.settings.nats_url)})
-                await stop.wait()
+                await self.speak(stop)
         finally:
             self.logger.info("shutting down")
             if self.nc is not None and not self.was_connected:
