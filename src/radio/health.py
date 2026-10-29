@@ -1,7 +1,8 @@
 """GET /healthz, on a small asyncio HTTP server of the standard library's parts.
 
 It answers 200 while radio is connected to NATS and 503 otherwise, with the same
-JSON either way, as logbook does: `status`, `version` and `connected`. Any other
+JSON either way, as logbook does: `status`, `version` and `connected`, and with the
+discord sink `voice_connected`, as v1 had (paddock#58 R7). Any other
 path is 404 and any other method 405. One request a connection, then it closes.
 """
 
@@ -27,12 +28,14 @@ class HealthServer:
         version: str,
         connected: Callable[[], bool],
         logger: logging.Logger,
+        voice: Callable[[], bool | None] = lambda: None,
     ) -> None:
         self._host = host or None  # None listens on every interface.
         self._port = port
         self._version = version
         self._connected = connected
         self._logger = logger
+        self._voice = voice
         self._server: asyncio.Server | None = None
 
     @property
@@ -53,11 +56,14 @@ class HealthServer:
     def body(self) -> tuple[HTTPStatus, dict[str, object]]:
         connected = self._connected()
         status = HTTPStatus.OK if connected else HTTPStatus.SERVICE_UNAVAILABLE
-        return status, {
+        body: dict[str, object] = {
             "status": "ok" if connected else "unavailable",
             "version": self._version,
             "connected": connected,
         }
+        if (voice := self._voice()) is not None:
+            body["voice_connected"] = voice
+        return status, body
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:

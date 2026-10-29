@@ -44,7 +44,7 @@ def main(
     except SettingsError as err:
         print(f"radio: {err}", file=sys.stderr)
         return 2
-    logger = logs.setup(settings.log_level, settings.log_format, stdout)
+    logger = logs.setup(settings.log_level, settings.log_format, stdout, settings.secrets())
     try:
         asyncio.run(_serve(Radio(settings, __version__, logger, stdout), stop))
     except Exception:

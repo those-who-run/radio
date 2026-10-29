@@ -7,6 +7,9 @@ readme = "README.md"
 license = "GPL-3.0-only"
 requires-python = ">=3.14"
 dependencies = [
+  # Discord voice, as v1 (paddock#58): its voice extra brings PyNaCl and davey (the
+  # voice encryption Discord requires); the image adds libopus and ffmpeg.
+  "discord-py[voice]==2.7.1",
   "nats-py==2.16.0", # the NATS client (paddock#55: the stable one, asyncio)
   "piper-tts==1.8.0", # the voice, as v1 (paddock#57); onnxruntime under it holds radio on 3.14
   "pyyaml==6.0.3", # the voice: settings file, v1's rules file format (paddock#57)
@@ -36,6 +39,12 @@ build-backend = "uv_build"
 
 [tool.uv]
 required-version = ">=0.13"
+# discord.py 2.7.1 caps PyNaCl below 1.6, and 1.5.0 bundles a libsodium with
+# GHSA-mrfv-m5wm-5w6w (fixed in 1.6.2). discord.py's master allows 1.6.x
+# ("Bump PyNaCl version to allow 1.6.x version installs"); drop this once a
+# release does. tests/unit/test_gateway.py round-trips discord.py's voice
+# encryption on it, so a bump that breaks voice fails CI.
+override-dependencies = ["pynacl==1.6.2"]
 
 [tool.ruff]
 line-length = 100

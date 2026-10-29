@@ -19,8 +19,9 @@ every REFETCH seconds, which picks up a redelivery.
 Speaking. One callout at a time (paddock#56 R5): the next is taken only once the
 last was said or dropped. A callout past its `expires_at` is dropped at the stage
 it was in, `queued` (which covers the wait while another plays), `connecting` or
-`synthesis`, logged and counted (`dropped`). One that fails to play is logged and
-the next is still spoken (R7).
+`synthesis`, logged and counted (`dropped`); one the sink can't speak, when it
+can't connect or voice drops before playing, at `not connected` (paddock#58 R6).
+One that fails to play is logged and the next is still spoken (R7).
 
 Acking (R6). A callout is acked when radio starts to say it, or when it is dropped,
 so a radio that dies mid-sentence never says it again. The ack before speaking
@@ -59,7 +60,7 @@ from typing import Any
 
 from nats.aio.client import Client
 from nats.aio.msg import Msg
-from nats.errors import TimeoutError as NATSTimeoutError
+from nats.aio.subscription import Subscription
 from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 from nats.js.client import JetStreamContext
 from twr.events.v1 import callout_pb2
@@ -78,7 +79,7 @@ from radio.queue import (
     Pending,
     utc_now,
 )
-from radio.sink import Sink
+from radio.sink import NotConnected, Sink
 from radio.timing import (
     DROPPED,
     EXPIRED,
@@ -166,13 +167,30 @@ class Callouts[C]:
         self._settled: dict[int, None] = {}
         self._subs: list[tuple[callout.Level, JetStreamContext.PullSubscription]] = []
         self._published = asyncio.Event()
+        self._notify: Subscription | None = None
 
     async def run(self) -> None:
         """Take and speak until cancelled."""
-        await self._subscribe()
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(self._take())
-            tg.create_task(self._speak() if self.timing == LIVE else self._simulate())
+        try:
+            await self._subscribe()
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(self._take())
+                tg.create_task(self._speak() if self.timing == LIVE else self._simulate())
+        finally:
+            await self._unsubscribe()
+
+    async def _unsubscribe(self) -> None:
+        """Let go of the subscriptions, so draining the connection at shutdown
+        doesn't wait out its timeout on a pull subscription (found by the offline
+        stage-1 run: SIGTERM took 5 s)."""
+        subs, self._subs = self._subs, []
+        for _, sub in subs:
+            with contextlib.suppress(Exception):
+                await sub.unsubscribe()
+        if self._notify is not None:
+            notify, self._notify = self._notify, None
+            with contextlib.suppress(Exception):
+                await notify.unsubscribe()
 
     # Taking.
 
@@ -204,7 +222,7 @@ class Callouts[C]:
                 )
                 await asyncio.sleep(RETRY_WAIT)
         self._subs = subs
-        await self.nc.subscribe(f"twr.v1.{self.src}.callout.*", cb=self._on_publish)
+        self._notify = await self.nc.subscribe(f"twr.v1.{self.src}.callout.*", cb=self._on_publish)
         self.logger.info(
             "callouts: taking", extra={"src": self.src, "stream": STREAM, "timing": self.timing}
         )
@@ -241,7 +259,10 @@ class Callouts[C]:
             for level, sub in self._subs:
                 try:
                     msgs = await sub.fetch(FETCH_BATCH, timeout=FETCH_WAIT)
-                except NATSTimeoutError:
+                except TimeoutError:
+                    # nats-py's own, or the builtin one its fetch raises when the
+                    # deadline passes during a burst (found by the offline stage-1
+                    # run): nothing more on this level this round, not NATS down.
                     continue
                 # Taking, the replay's clock waits for this batch.
                 self.replay.busy()
@@ -374,6 +395,8 @@ class Callouts[C]:
                 self.timeline.write(p, SPOKEN, None, started, finished or self.clock())
             finally:
                 self.sink.release(clip)
+        except NotConnected:
+            await self._drop(p, NOT_CONNECTED, now())
         except Exception:
             self.logger.exception("callout failed to play", extra=_about(p))
             self.timeline.write(p, DROPPED, PLAYING)

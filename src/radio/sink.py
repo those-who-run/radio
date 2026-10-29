@@ -1,5 +1,5 @@
 """Where radio speaks a callout (paddock#56; the console and WAV sinks paddock#60,
-Discord #58).
+Discord #58, in radio.discord_sink).
 
 radio speaks one callout at a time and calls a sink's steps in v1's order:
 `connect`, then `prepare` (the synthesis), then `play`. Between them it drops the
@@ -27,6 +27,11 @@ from radio.speech import Utterance, estimate
 from radio.voice import VoiceSettings
 
 
+class NotConnected(Exception):
+    """play found the sink could no longer speak, as when voice dropped while the
+    callout was synthesised: it is dropped at `not connected`."""
+
+
 class Sink[C](Protocol):
     """A sink's steps. C is what `prepare` makes for `play`, such as a WAV."""
 
@@ -46,7 +51,7 @@ class Sink[C](Protocol):
         ...
 
     async def play(self, clip: C, callout: Pending) -> None:
-        """Say it, returning once it has been said."""
+        """Say it, returning once it has been said; NotConnected when it can't."""
         ...
 
     def release(self, clip: C) -> None:
