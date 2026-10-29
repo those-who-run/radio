@@ -1,8 +1,8 @@
 """radio, the voice engineer of Those Who Run v2 (README.md).
 
-So far it starts, connects to NATS, reports its health and stops cleanly, and can
-synthesise speech (speech.py, piper_voice.py) that nothing calls yet: taking
-callouts and Discord come in later issues (paddock#56, #58).
+It takes ecu's callouts (callouts.py), phrases them as its engineer (engineer.py,
+phrases.py) and speaks them to the console or to WAV files (sink.py, speech.py),
+live or on a replay's clock (timing.py). Discord comes later (paddock#58).
 """
 
 from importlib.metadata import version

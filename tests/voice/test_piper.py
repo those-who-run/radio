@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from radio.piper_voice import open_synthesizer
+from radio.engineer import from_settings
+from radio.piper_voice import Voices
 from radio.settings import Settings
 from radio.speech import WARM_UP, duration
 from radio.voice import VoiceSettings
@@ -17,7 +18,8 @@ from radio.voice import VoiceSettings
 def test_alba_says_ac2_as_v1_would(tmp_path: Path) -> None:
     model = Path(os.environ["TWR_RADIO_VOICE_MODEL"])
     settings = Settings(voice_model=model, voice=VoiceSettings(), cache_dir=tmp_path)
-    s = open_synthesizer(settings, logging.getLogger("radio"))
+    voices = Voices(settings, logging.getLogger("radio"))
+    s = voices.get(from_settings(settings))
     try:
         assert s.render(WARM_UP) is not None
         u = s.render("Lap two. One oh four point six.")
@@ -30,4 +32,4 @@ def test_alba_says_ac2_as_v1_would(tmp_path: Path) -> None:
         made = s.render("Lap three. One oh four point six.")
         assert made is not None and 0.5 < made.duration < 5
     finally:
-        s.close()
+        voices.close()

@@ -19,7 +19,8 @@ make run    # radio, logging text to standard output
 ```
 
 radio serves `GET /healthz`, connects to NATS and logs `ready`, then takes
-its source's callouts and speaks them ([The callouts](#the-callouts)). Until NATS
+its source's callouts and speaks them ([The callouts](#the-callouts)) to the
+console or to WAV files ([Sinks and timing](#sinks-and-timing)). Until NATS
 answers it retries, logging each failed attempt, and `/healthz` answers 503;
 once connected it answers 200. Either way the body is
 `{"status": "ok" | "unavailable", "version": "…", "connected": true | false}`.
@@ -37,6 +38,10 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35), and v1's script | A v1 rules file: its `voice:` section tunes the voice ([The voice](#the-voice)), and its `script:` and template keys the phrases ([The phrases](#the-phrases)). |
 | `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
 | `TWR_RADIO_CACHE_MAX_MB` | `100` | The sentence cache's cap, in MiB; the least recently used sentence goes first. |
+| `TWR_RADIO_SINK` | `console` | Where radio speaks: `console`, a line a callout on standard output, or `wav`, a WAV file a callout and the line. `discord` comes with paddock#58. Neither needs a Discord setting. |
+| `TWR_RADIO_WAV_DIR` | unset | The directory the `wav` sink writes to; it needs one. |
+| `TWR_RADIO_TIMING` | `live` | How long a callout takes: `live` on the wall clock, or a replay's own clock, `instant` or `simulated` ([Sinks and timing](#sinks-and-timing)). |
+| `TWR_RADIO_TIMELINE_FILE` | unset | Where each callout's timeline goes, a JSON line each, appended to, so a restart keeps what came before. |
 
 A value radio can't read stops it at start with exit code 2.
 
@@ -44,8 +49,8 @@ A value radio can't read stops it at start with exit code 2.
 
 radio speaks with Piper and v1's voice, `en_GB-alba-medium`, sentence by
 sentence with a pause between sentences, caching each sentence so a phrase
-said before is not made again (paddock#57). It is not wired to callouts yet:
-taking them (paddock#56) and the Discord sink (paddock#58) come next.
+said before is not made again (paddock#57). The `wav` sink speaks with it, and
+the Discord sink (paddock#58) will.
 
 The model is never committed. `make voice` fetches it into `voices/` from the
 pinned [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/en/en_GB/alba/medium)
@@ -130,9 +135,78 @@ phrase key, with no rules of its own ([`callouts.py`](src/radio/callouts.py)):
   and not yet said comes back after 5 s (the consumers' `ack_wait`) if radio
   stopped, so a restart says each callout once and drops the ones that expired.
 
-The speaking side is a sink (`radio.sink.Sink`: connect, prepare, play). For now
-radio logs each callout it would say (`speaking`); the console and Discord sinks
-come with paddock#60 and #58.
+The speaking side is a sink (`radio.sink.Sink`: connect, prepare, play, release).
+
+## The engineer
+
+An engineer is who says the callouts: a name, a voice (the Piper model and its
+`voice:` settings), a script (the templates) and, later, a personality
+([`engineer.py`](src/radio/engineer.py)). It changes how a callout is said, the
+words and the voice, never which callouts are said or when: ecu decides those.
+
+There is one engineer today, `v1`: v1's voice and v1's script, from
+`TWR_RADIO_VOICE_MODEL` and `TWR_RADIO_VOICE_FILE` as before. When radio speaks
+with a voice, every engineer's model is checked and loaded at start, off the
+event loop. radio chooses the
+engineer per session, not once for the process: `Roster.pick(session_id)` gives
+the configured one, else the default. Each session's callouts are phrased by
+its engineer's phrasebook, seeded by the session's id, so a replay of a session,
+with the session id ecu gave it, says the same words (paddock#90). That needs
+ecu's replay to give seeded session ids, which it doesn't yet (it mints them
+with `ulid.Make`); until it does, each replay's words are a fresh draw. A callout
+outside a session, such as telemetry lost between sessions, is phrased unseeded,
+as v1 phrased everything.
+
+A second engineer is added as data: an `Engineer` in the roster, with its voice
+model, voice settings and templates. The roster then picks the driver's choice,
+or, when there is none, one at random seeded by the session id, so that two
+replays of one recording get the same engineer (drawn from the roster sorted by
+name, so the order it was built in doesn't matter). A personality, later,
+changes how something is said, never which callouts are said: that is ecu's.
+Nothing that takes, orders or times callouts changes.
+
+## Sinks and timing
+
+A replay, the parity check and the ephemeral environment need no Discord
+(paddock#60). radio speaks to:
+
+- `console`: a line a callout, v1's `ConsolePlayer`'s `[t] (rule) text`, with the
+  kind and the id; `t` is ecu's `created_at`, in UTC.
+- `wav`: each callout said is synthesised off the event loop and written to
+  `<dir>/<nnn>-<rule>.wav`, numbered in the order said (v1's `WavDirPlayer`),
+  and its line printed. The numbers carry on after the highest already in the
+  directory, so a restart never overwrites a file.
+
+`TWR_RADIO_TIMING` says how long each callout takes ([`timing.py`](src/radio/timing.py)):
+
+- `live`: the wall clock, each callout as long as the sink takes to play it.
+- `instant`: v1's replay. Each callout is said at its `created_at`, or when its
+  hold ends, in the queue's order, takes no time, and never goes stale. For
+  checking what is said.
+- `simulated`: a speaker, as live, on the replay's clock: one callout at a time,
+  each holding the channel for as long as it takes to say, with the staleness
+  and hold rules on. For checking timing. How long a callout takes comes from the
+  voice when radio has it (the `wav` sink, or the `console` sink with the model
+  present), and else from an estimate fitted to the voice, about 2.4 words a
+  second at `length_scale` 0.9 (`radio.speech.estimate`).
+
+On a replay's clock, time is the callouts' own: ecu publishes them in the order
+it raised them, so once radio has queued one created at `t`, nothing created
+before `t` is still to come, and radio decides up to `t`. When nothing comes, the
+clock creeps on with the wall clock, a second behind, so the last callouts are
+said too; it stands still while radio is taking callouts, so a long burst is
+never overtaken. A replay whose callouts are never more than a second apart in
+wall time, where they were further apart in its own time, gives the same result
+at any speed. A gap of more than a second in publishing (a stalled replayer, or
+a replay slower than recorded) lets the clock creep past that gap, and a
+callout published after it can then be said late or in another order.
+
+With `TWR_RADIO_TIMELINE_FILE`, each callout settled is a JSON line:
+`callout_id`, `rule`, `kind`, `text`, `engineer`, `at` (ecu's frame), `created_at`,
+`queued`, `started`, `finished`, `dropped` (times in RFC 3339, UTC), `outcome`
+(`spoken`, `expired` or `dropped`) and `stage` (where it expired or was dropped:
+`queued`, `connecting`, `synthesis`, `not connected`, `phrasing`, `playing` or
+`nothing to say`).
 
 The tests run against a real `nats-server -js`: the binary `TWR_NATS_SERVER`
 names, else `nats-server` on the `PATH`, else the pinned release, fetched once into

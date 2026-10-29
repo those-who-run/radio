@@ -38,6 +38,11 @@ LEVELS = {
     "error": logging.ERROR,
 }
 FORMATS = ("text", "json")
+# Where radio speaks (TWR_RADIO_SINK): Discord is paddock#58, still to come.
+SINKS = ("console", "wav", "discord")
+# How long each callout takes (TWR_RADIO_TIMING): live on the wall clock, or a
+# replay's own clock, instant or with a simulated speaker (radio.timing).
+TIMINGS = ("live", "instant", "simulated")
 
 
 class SettingsError(ValueError):
@@ -76,6 +81,16 @@ class Settings:
     # The phrases, by rule and key: v1's script over the built-in phrases, with
     # voice_file's `script:` and template keys over them (radio.phrasing).
     templates: Templates = field(default_factory=templates)
+    # Where radio speaks: TWR_RADIO_SINK, console (a line a callout on standard
+    # output) or wav (a numbered WAV file a callout in wav_dir, and the line).
+    sink: str = "console"
+    # TWR_RADIO_WAV_DIR, which the wav sink needs.
+    wav_dir: Path | None = None
+    # TWR_RADIO_TIMING: live, instant or simulated.
+    timing: str = "live"
+    # Where each callout's timeline goes, a JSON line each: TWR_RADIO_TIMELINE_FILE.
+    # Unset, nowhere.
+    timeline_file: Path | None = None
 
 
 def parse_addr(addr: str) -> tuple[str, int]:
@@ -117,6 +132,18 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         table = load_rules_file(voice_file) if voice_file else templates()
     except TemplateError as err:
         raise SettingsError(f"TWR_RADIO_VOICE_FILE: {err}") from err
+    sink = get("TWR_RADIO_SINK").lower() or "console"
+    if sink not in SINKS:
+        raise SettingsError(f"TWR_RADIO_SINK: {sink!r} is not one of {', '.join(SINKS)}")
+    if sink == "discord":
+        raise SettingsError("TWR_RADIO_SINK: discord is not here yet (paddock#58)")
+    wav_dir = Path(get("TWR_RADIO_WAV_DIR")) if get("TWR_RADIO_WAV_DIR") else None
+    if sink == "wav" and wav_dir is None:
+        raise SettingsError("TWR_RADIO_WAV_DIR: the wav sink needs a directory")
+    timing = get("TWR_RADIO_TIMING").lower() or "live"
+    if timing not in TIMINGS:
+        raise SettingsError(f"TWR_RADIO_TIMING: {timing!r} is not one of {', '.join(TIMINGS)}")
+    timeline = get("TWR_RADIO_TIMELINE_FILE")
     return Settings(
         nats_url=nats_url,
         health_host=host,
@@ -130,6 +157,10 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         cache_max_mb=int(max_mb),
         src=src,
         templates=table,
+        sink=sink,
+        wav_dir=wav_dir,
+        timing=timing,
+        timeline_file=Path(timeline) if timeline else None,
     )
 
 

@@ -45,6 +45,26 @@ def test_radios_own(tmp_path: Path) -> None:
     assert s.src == "live"
 
 
+def test_the_sink_and_the_timing() -> None:
+    s = from_env(
+        {
+            "TWR_RADIO_SINK": "WAV",
+            "TWR_RADIO_WAV_DIR": "/out/wav",
+            "TWR_RADIO_TIMING": "simulated",
+            "TWR_RADIO_TIMELINE_FILE": "/out/timeline.jsonl",
+        }
+    )
+    assert (s.sink, s.wav_dir, s.timing, s.timeline_file) == (
+        "wav",
+        Path("/out/wav"),
+        "simulated",
+        Path("/out/timeline.jsonl"),
+    )
+    # The console, live, with no timeline, by default.
+    d = from_env({})
+    assert (d.sink, d.wav_dir, d.timing, d.timeline_file) == ("console", None, "live", None)
+
+
 def test_the_source() -> None:
     assert from_env({"TWR_RADIO_SRC": "replay-sugo-1"}).src == "replay-sugo-1"
 
@@ -103,6 +123,10 @@ def test_addresses(addr: str, want: tuple[str, int]) -> None:
         ({"TWR_RADIO_SRC": "replay.sugo"}, "TWR_RADIO_SRC"),
         ({"TWR_RADIO_SRC": "a/b"}, "TWR_RADIO_SRC"),
         ({"TWR_RADIO_SRC": "*"}, "TWR_RADIO_SRC"),
+        ({"TWR_RADIO_SINK": "speaker"}, "TWR_RADIO_SINK"),
+        ({"TWR_RADIO_SINK": "discord"}, "TWR_RADIO_SINK: discord is not here yet"),
+        ({"TWR_RADIO_SINK": "wav"}, "TWR_RADIO_WAV_DIR"),
+        ({"TWR_RADIO_TIMING": "fast"}, "TWR_RADIO_TIMING"),
     ],
 )
 def test_a_value_radio_cant_read_stops_it(env: dict[str, str], names: str) -> None:

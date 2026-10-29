@@ -61,6 +61,20 @@ STALE_SECS = 600.0
 # (v1's App._startup, #57 R7).
 WARM_UP = "Race engineer online."
 
+# How long the voice takes to say text, for a simulated speaker with no voice to
+# measure (paddock#60 R3): CHARS_PER_SECOND, letters and digits, and
+# SENTENCE_SECONDS for each sentence's start and end, at MEASURED_LENGTH_SCALE.
+# Fitted by least squares on 2026-10-29 to Piper's durations for 80 of v1's
+# phrases (tests/unit/testdata/v1_phrases.json), spoken by en_GB-alba-medium with
+# v1's voice settings (length_scale 0.9, noise_scale 0.5, noise_w_scale 0.5): about
+# 2.4 words a second, pauses included. Letters fit Piper better than words do ("Up
+# to first." is short for three words); 10 phrases held out of the fit were each
+# within 20 % (tests/voice/test_estimate.py).
+CHARS_PER_SECOND = 18.1
+SENTENCE_SECONDS = 0.55
+MEASURED_LENGTH_SCALE = 0.9
+_SPOKEN = re.compile(r"[A-Za-z0-9]")
+
 
 def split_sentences(text: str) -> list[str]:
     """Split on `.`, `!` or `?` followed by space. The text has no decimal points:
@@ -71,6 +85,20 @@ def split_sentences(text: str) -> list[str]:
 def speakable(text: str) -> bool:
     """Whether text has anything to say: a letter or a digit."""
     return any(ch.isalnum() for ch in text)
+
+
+def estimate(text: str, length_scale: float | None, pause_secs: float) -> float:
+    """How long the voice takes to say text, in seconds, without synthesising it:
+    the letters and digits, each sentence's start and end, and the pauses between
+    sentences.
+    Piper's speaking rate scales with length_scale; None is the model's own, 1."""
+    sentences = [s for s in split_sentences(text) if speakable(s)]
+    if not sentences:
+        return 0.0
+    chars = sum(len(_SPOKEN.findall(s)) for s in sentences)
+    spoken = chars / CHARS_PER_SECOND + len(sentences) * SENTENCE_SECONDS
+    scale = (1.0 if length_scale is None else length_scale) / MEASURED_LENGTH_SCALE
+    return spoken * scale + (len(sentences) - 1) * max(pause_secs, 0.0)
 
 
 def _sha1(text: str) -> str:
