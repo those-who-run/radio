@@ -123,3 +123,24 @@ async def until_logged(log: io.StringIO, msg: str) -> None:
     async with asyncio.timeout(2):
         while msg not in [x["msg"] for x in lines(log)]:
             await asyncio.sleep(0)
+
+
+def test_discord_voice_encryption_round_trips_on_this_pynacl() -> None:
+    # pyproject.toml overrides discord.py's PyNaCl cap (<1.6) with 1.6.2 for
+    # GHSA-mrfv-m5wm-5w6w: discord.py's own encrypt path, decrypted with
+    # nacl.secret.Aead, so a PyNaCl bump that breaks voice fails here.
+    import nacl.secret
+
+    vc = discord.VoiceClient.__new__(discord.VoiceClient)
+    key = bytes(range(32))
+    # The key comes from the voice connection's state, as discord.py keeps it.
+    vc._connection = type("State", (), {"secret_key": list(key)})()
+    vc._incr_nonce = 7
+    header = bytes(12)
+    audio = b"opus frame"
+    packet = vc._encrypt_aead_xchacha20_poly1305_rtpsize(header, audio)
+    assert packet[:12] == header
+    nonce = packet[-4:] + bytes(20)
+    plain = nacl.secret.Aead(key).decrypt(packet[12:-4], header, nonce)
+    assert plain == audio
+    assert vc._incr_nonce == 8

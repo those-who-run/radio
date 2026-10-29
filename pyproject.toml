@@ -42,7 +42,8 @@ required-version = ">=0.13"
 # discord.py 2.7.1 caps PyNaCl below 1.6, and 1.5.0 bundles a libsodium with
 # GHSA-mrfv-m5wm-5w6w (fixed in 1.6.2). discord.py's master allows 1.6.x
 # ("Bump PyNaCl version to allow 1.6.x version installs"); drop this once a
-# release does.
+# release does. tests/unit/test_gateway.py round-trips discord.py's voice
+# encryption on it, so a bump that breaks voice fails CI.
 override-dependencies = ["pynacl==1.6.2"]
 
 [tool.ruff]

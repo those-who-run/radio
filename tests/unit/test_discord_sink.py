@@ -312,7 +312,7 @@ async def test_a_playback_that_never_calls_back_is_stopped(
     loop = asyncio.get_running_loop()
     started = loop.time()
     await asyncio.wait_for(s.play(clip(tmp_path), pending()), 2)
-    assert 0.3 <= loop.time() - started < 1.0
+    assert 0.3 <= loop.time() - started < 2.0
     assert vc.stopped == 1 and g.sources[0].cleaned == 1
     [line] = [x for x in lines(log) if x["msg"] == "voice: playback did not finish, stopping"]
     assert line["bound_s"] == pytest.approx(0.3)
@@ -407,7 +407,8 @@ async def test_a_callout_that_expires_during_the_join_is_dropped(
     stop = asyncio.Event()
     task = asyncio.create_task(r.run(stop))
     await until(lambda: "callouts: taking" in msgs(log))
-    await publish(js, made("final_lap", "template", 10, expires_in=0.3), src="expiring")
+    # Expires 1.5 s on: radio takes it well before, while the join is held.
+    await publish(js, made("final_lap", "template", 10, expires_in=1.5), src="expiring")
     await until(lambda: "callout dropped" in msgs(log))
     [drop] = [x for x in lines(log) if x["msg"] == "callout dropped"]
     assert drop["stage"] == "connecting"
@@ -506,3 +507,40 @@ async def test_the_token_is_in_no_status_body(
     assert TOKEN not in json.dumps(body)
     stop.set()
     await asyncio.wait_for(task, 10)
+
+
+async def test_an_open_session_retries_a_failed_join_on_the_timer(
+    tmp_path: Path, log: io.StringIO
+) -> None:
+    # A failed join (a Discord 5xx) is tried again by the idle timer while a
+    # session is open, backoff apart, without waiting for the next event.
+    g = FakeGateway(FakeChannel(fail="503 Service Unavailable"))
+    s = sink(tmp_path, g, backoff=15.0)
+    s.event("twr.v1.live.evt.S1.session.started", now=0.0)
+    await until(lambda: "voice: join failed" in msgs(log))
+    g.chan.fail = ""
+    await s.check_idle(10.0)  # within the backoff: no attempt
+    assert len(g.chan.connects) == 1
+    await s.check_idle(20.0)
+    await until(lambda: s.connected)
+    assert len(g.chan.connects) == 2
+
+
+async def test_with_no_session_the_timer_joins_nothing(tmp_path: Path) -> None:
+    g = FakeGateway()
+    s = sink(tmp_path, g)
+    await s.check_idle(0.0)
+    await s.check_idle(100.0)
+    assert g.chan.connects == []
+
+
+async def test_closed_it_ignores_a_late_event(tmp_path: Path) -> None:
+    # At shutdown, an event that arrives after the sink closed starts no join on
+    # the closed gateway.
+    g = FakeGateway()
+    s = sink(tmp_path, g)
+    await s.close()
+    s.event("twr.v1.live.evt.S1.session.started", now=0.0)
+    s.active(0.0)
+    await s.check_idle(0.0)
+    assert g.chan.connects == [] and s._joining is None

@@ -239,13 +239,15 @@ while v1 is live.
 - With no session open (`session.ended` or `session.discarded` closes one),
   voice is left after `TWR_RADIO_IDLE_DISCONNECT_SECS` with nothing to say,
   checked every 10 s.
-- Joins are at least `TWR_RADIO_RECONNECT_BACKOFF_SECS` apart. A voice client
+- While a session is open and voice is down, the 10 s timer joins again, so a
+  failed join doesn't wait for the next event. Joins are at least
+  `TWR_RADIO_RECONNECT_BACKOFF_SECS` apart. A voice client
   discord.py is already reconnecting is adopted rather than joined over, and
   replaced only after 4 attempts that find it still down.
 - A clip plays for at most its length plus 5 s, then is stopped and logged.
 - The token goes to discord.py and nowhere else: every log line, radio's and
-  discord.py's, has `[redacted]` wherever it would appear, and no status body
-  holds it.
+  every library's (through the root logger), has `[redacted]` wherever it would
+  appear, and no status body holds it.
 
 The image carries ffmpeg, which resamples each clip to Discord's 48 kHz stereo,
 and libopus, which encodes it, as v1's does.

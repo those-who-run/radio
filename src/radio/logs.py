@@ -2,7 +2,8 @@
 `time`, `level` and `msg` first and the record's own key-value pairs after. A pair is
 passed as `extra={...}`; `json` writes an object a line, `text` writes logfmt.
 
-discord.py's own lines go the same way, from info up. A secret, such as the bot's
+Every library's lines (discord.py, asyncio, aiohttp, nats-py) go the same way,
+through the root logger, from info up. A secret, such as the bot's
 token, never reaches a line: wherever it turns up, in a message, a field or a
 traceback, the line has `[redacted]` in its place (paddock#58 R8).
 """
@@ -20,9 +21,11 @@ _STANDARD = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime", "ta
 # slog's names for the levels.
 _LEVELS = {logging.DEBUG: "DEBUG", logging.INFO: "INFO", logging.WARNING: "WARN"}
 REDACTED = "[redacted]"
-# The libraries whose lines radio writes beside its own: discord.py's debug lines
-# hold every gateway event, so they start at info.
-LIBRARIES = ("discord",)
+# The name radio's handler goes by, so a second setup replaces it.
+_HANDLER = "radio"
+# The libraries' lines, through the root logger, start at info: discord.py's debug
+# lines hold every gateway event.
+LIBRARY_LEVEL = logging.INFO
 
 
 def _fields(record: logging.LogRecord) -> dict[str, Any]:
@@ -73,16 +76,16 @@ class Redacting(logging.Formatter):
 
 
 def setup(level: int, fmt: str, stream: IO[str], secrets: Iterable[str] = ()) -> logging.Logger:
-    """The `radio` logger, writing to stream in fmt from level up, with discord.py's
-    lines beside it and secrets kept out of both. Called again, it replaces what
-    the last call set up."""
+    """The `radio` logger, writing to stream in fmt from level up, with every
+    library's lines beside it through the root logger, and secrets kept out of
+    all of them. Called again, it replaces what the last call set up; a root
+    handler radio didn't install, such as pytest's, is left alone."""
     handler = logging.StreamHandler(stream)
     handler.setFormatter(Redacting(JSONFormatter() if fmt == "json" else TextFormatter(), secrets))
-    for name in LIBRARIES:
-        lib = logging.getLogger(name)
-        lib.handlers[:] = [handler]
-        lib.setLevel(max(level, logging.INFO))
-        lib.propagate = False
+    handler.set_name(_HANDLER)
+    root = logging.getLogger()
+    root.handlers[:] = [h for h in root.handlers if h.get_name() != _HANDLER] + [handler]
+    root.setLevel(max(level, LIBRARY_LEVEL))
     logger = logging.getLogger("radio")
     logger.handlers[:] = [handler]
     logger.setLevel(level)

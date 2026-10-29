@@ -21,6 +21,7 @@ from typing import IO
 
 from nats.aio.client import Client
 from nats.aio.msg import Msg
+from nats.aio.subscription import Subscription
 
 from radio.callouts import Callouts
 from radio.discord_sink import DiscordSink, Gateway
@@ -171,10 +172,11 @@ class Radio:
                 await sink.voices.load(e)
         self.sink = sink
         timeline = Timeline(s.timeline_file)
+        events: Subscription | None = None
         try:
             if isinstance(sink, DiscordSink):
                 await sink.start()
-                await self._follow(sink)
+                events = await self._follow(sink)
         except BaseException:
             timeline.close()
             await sink.close()
@@ -194,9 +196,13 @@ class Radio:
                 await speaking
         finally:
             timeline.close()
+            if events is not None:
+                # Before the sink closes: a late event must not start a join.
+                with contextlib.suppress(Exception):
+                    await events.unsubscribe()
             await sink.close()
 
-    async def _follow(self, sink: DiscordSink) -> None:
+    async def _follow(self, sink: DiscordSink) -> Subscription:
         """The source's events open voice and close sessions: a plain subscription,
         since only what happens from now on matters."""
         assert self.nc is not None
@@ -204,7 +210,7 @@ class Radio:
         async def on_event(msg: Msg) -> None:
             sink.event(msg.subject)
 
-        await self.nc.subscribe(f"twr.v1.{self.settings.src}.evt.>", cb=on_event)
+        return await self.nc.subscribe(f"twr.v1.{self.settings.src}.evt.>", cb=on_event)
 
     async def run(self, stop: asyncio.Event) -> None:
         """Serve and connect until stop is set, then shut down cleanly."""

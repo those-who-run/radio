@@ -47,3 +47,21 @@ def test_setup_again_replaces_the_handler() -> None:
     logs.setup(logging.INFO, "json", second).info("once")
     assert first.getvalue() == ""
     assert len(second.getvalue().splitlines()) == 1
+
+
+def test_every_librarys_lines_are_written_and_redacted() -> None:
+    # Through the root logger: asyncio's and aiohttp's lines too, from info up,
+    # with the secret kept out.
+    out = io.StringIO()
+    logs.setup(logging.DEBUG, "json", out, ["s3cret-value"])
+    try:
+        logging.getLogger("asyncio").error("task failed with s3cret-value")
+        logging.getLogger("aiohttp.client").info("connected")
+        logging.getLogger("discord.gateway").debug("every gateway event")
+        records = [json.loads(line) for line in out.getvalue().splitlines()]
+        assert [r["msg"] for r in records] == ["task failed with [redacted]", "connected"]
+        root = logging.getLogger()
+        logs.setup(logging.INFO, "json", io.StringIO())
+        assert sum(h.get_name() == "radio" for h in root.handlers) == 1
+    finally:
+        logs.setup(logging.INFO, "json", io.StringIO())

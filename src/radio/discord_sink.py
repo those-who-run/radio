@@ -126,6 +126,8 @@ class DiscordSink(ConsoleSink):
         self._sessions: set[str] = set()
         self._joining: asyncio.Task[None] | None = None
         self._watching: asyncio.Task[None] | None = None
+        # Once closed, nothing joins again: a late event at shutdown is ignored.
+        self._closed = False
 
     # Lifecycle.
 
@@ -135,6 +137,7 @@ class DiscordSink(ConsoleSink):
         self._watching = asyncio.create_task(self._watch(), name="voice-idle")
 
     async def close(self) -> None:
+        self._closed = True
         for task in (self._watching, self._joining):
             if task is not None:
                 task.cancel()
@@ -156,7 +159,7 @@ class DiscordSink(ConsoleSink):
         and `session.discarded` close the session. Events outside a session (`_`)
         are neither."""
         parts = subject.split(".")
-        if len(parts) < 7 or parts[3] != "evt" or parts[4] == "_":
+        if self._closed or len(parts) < 7 or parts[3] != "evt" or parts[4] == "_":
             return
         sid, what = parts[4], ".".join(parts[5:])
         now = self.monotonic() if now is None else now
@@ -171,6 +174,8 @@ class DiscordSink(ConsoleSink):
 
     def active(self, now: float | None = None) -> None:
         """Something to say: voice stays up, and is joined if it isn't."""
+        if self._closed:
+            return
         now = self.monotonic() if now is None else now
         self._last_active = now
         if not self.connected:
@@ -178,9 +183,16 @@ class DiscordSink(ConsoleSink):
 
     async def check_idle(self, now: float | None = None) -> None:
         """Leave once nothing has been on for idle seconds. An open session is
-        activity, as v1's at_track, in_race and paused were."""
+        activity, as v1's at_track, in_race and paused were, and voice down
+        while one is open is joined again, backoff apart, as v1 retried while on
+        track: a failed join doesn't wait for the next event."""
         now = self.monotonic() if now is None else now
-        if self._sessions or self._last_active is None:
+        if self._sessions:
+            self._last_active = now
+            if not self.connected and not self._closed:
+                self._start_join(now)
+            return
+        if self._last_active is None:
             self._last_active = now
             return
         if self.connected and now - self._last_active > self.idle:
