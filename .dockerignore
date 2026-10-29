@@ -1,0 +1,8 @@
+# Only what the build needs goes to the builder: the project, its lock and its code.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!src/
+src/**/__pycache__

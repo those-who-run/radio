@@ -7,3 +7,8 @@ __pycache__/
 !.claude/hooks/
 .claude/hooks/*
 !.claude/hooks/guard.py
+.venv/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
