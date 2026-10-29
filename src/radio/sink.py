@@ -59,6 +59,7 @@ class Sink[C](Protocol):
 
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
+_NUMBERED = re.compile(r"^(\d{3,})-.*\.wav$")
 
 
 @dataclass(frozen=True)
@@ -117,14 +118,18 @@ class ConsoleSink:
 
 class WavSink(ConsoleSink):
     """v1's WavDirPlayer: each callout said is written to `<dir>/<nnn>-<rule>.wav`,
-    numbered from 001 in the order said, and its line printed. Synthesised off the
-    event loop."""
+    numbered in the order said, and its line printed. Synthesised off the event
+    loop. The numbers carry on after the highest already in the directory, so a
+    restarted radio never overwrites what it said before."""
 
     def __init__(self, out: IO[str], voices: Voices, directory: Path) -> None:
         super().__init__(out, voices)
         self.dir = directory
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.written = 0
+        self.written = max(
+            (int(m[1]) for f in self.dir.iterdir() if (m := _NUMBERED.match(f.name))),
+            default=0,
+        )
 
     async def play(self, clip: Clip, callout: Pending) -> None:
         await super().play(clip, callout)

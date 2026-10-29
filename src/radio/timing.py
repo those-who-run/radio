@@ -16,8 +16,11 @@ a replay at 10 times speed gives what one at recorded speed gives. ecu publishes
 the order it raised, so once radio has queued a callout created at t, every callout
 created before t is queued too, and the speaker may decide anything up to t. When
 nothing comes, the clock creeps on with the wall clock, LAG behind it, so the last
-callouts of a replay are said too. A replay published slower than its recorded
-speed, or held up for longer than LAG, can let the creep get ahead of it.
+callouts of a replay are said too, and it stands still while radio is taking
+callouts, so a long burst can't be overtaken. A replay held up for longer than
+LAG between two callouts lets the clock creep past that gap: a replay published
+slower than its recorded speed, with gaps longer than LAG where it recorded
+shorter ones, can then be overtaken.
 """
 
 from __future__ import annotations
@@ -66,6 +69,12 @@ class ReplayClock:
             self._since = self.monotonic()
         self._changed.set()
 
+    def busy(self) -> None:
+        """radio is taking callouts it hasn't queued yet: the clock doesn't creep
+        meanwhile, so it creeps only over a real stall, never past a callout
+        taken and still to be queued."""
+        self._since = self.monotonic()
+
     def poke(self) -> None:
         """Wake a wait to look again, as when the wall clock the tests stop moves."""
         self._changed.set()
@@ -108,13 +117,14 @@ def stamp(t: datetime | None) -> str | None:
 class Timeline:
     """Each callout's way through radio, a JSON line each as it is settled
     (paddock#60 R5): when it was queued, started and finished, or that it expired
-    or was dropped and at which stage. The file is written afresh for each run."""
+    or was dropped and at which stage. A restarted radio appends to the file, so
+    a run that restarts keeps what it said before."""
 
     def __init__(self, path: Path | None) -> None:
         self._out: IO[str] | None = None
         if path is not None:
             path.parent.mkdir(parents=True, exist_ok=True)
-            self._out = path.open("w", encoding="utf-8")
+            self._out = path.open("a", encoding="utf-8")
 
     def write(
         self,

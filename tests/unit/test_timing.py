@@ -9,6 +9,7 @@ radio says, so a loaded machine changes how long a test takes, never its result.
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -20,9 +21,13 @@ import pytest
 from helpers import until
 from nats.js.client import JetStreamContext
 from test_callouts import made, publish
+from twr_contracts.callout import Level
 
 from radio.queue import Pending
 from radio.timing import INSTANT, SIMULATED, ReplayClock, Timeline, stamp
+
+# Each replay's timeline file.
+_runs = itertools.count()
 
 # The recording's own time: long ago, so nothing can depend on the wall clock.
 BASE = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
@@ -75,6 +80,14 @@ class Speaker:
         return None
 
 
+class Delivery:
+    async def ack(self) -> None:
+        return None
+
+    async def ack_sync(self, timeout: float = 1.0) -> object:
+        return None
+
+
 def read(path: Path) -> list[dict[str, Any]]:
     return [json.loads(x) for x in path.read_text().splitlines()]
 
@@ -92,7 +105,7 @@ async def replay(
     all, and give the sink and the timeline once every callout is settled."""
     sink = sink or Speaker()
     wall = Wall()
-    path = tmp_path / f"timeline-{id(sent)}.jsonl"
+    path = tmp_path / f"timeline-{next(_runs)}.jsonl"
     timeline = Timeline(path)
     r = await start(sink, timing=timing, timeline=timeline, replay=wall.clock)
     await until(lambda: r.callouts._subs)
@@ -281,3 +294,46 @@ async def test_the_timeline_has_every_field(
         "outcome": "spoken",
         "stage": None,
     }
+
+
+def test_a_restart_appends_to_the_timeline(tmp_path: Path) -> None:
+    path = tmp_path / "timeline.jsonl"
+    path.write_text('{"callout_id":"before"}\n')
+    m = made("final_lap", "template", 11, created=at(0))
+    p = Pending(m, Level.P1, 1, Delivery())
+    t = Timeline(path)
+    t.write(p, "spoken")
+    t.close()
+    assert [e["callout_id"] for e in read(path)] == ["before", m.id]
+
+
+async def test_a_long_burst_is_not_overtaken_by_the_creep(
+    start: Any, js: JetStreamContext, tmp_path: Path
+) -> None:
+    # On the real wall clock: an out-lap call at 0 s held 2 s, then 199 callouts
+    # created at 0.01 s to 1.99 s, published one at a time for about 4 s, longer
+    # than the lag plus the hold. The clock stands still while radio is taking
+    # them, so the out-lap call is said last, at 2 s, after all 199.
+    sink = Speaker()
+    path = tmp_path / "timeline.jsonl"
+    timeline = Timeline(path)
+    r = await start(sink, timing=INSTANT, timeline=timeline, replay=ReplayClock())
+    await until(lambda: r.callouts._subs)
+    out_lap = made(
+        "lap_time",
+        "template_out_lap",
+        20,
+        created=at(0),
+        hold=2,
+        slots={"lap": 4, "lapTimeMs": 90000},
+    )
+    await publish(js, out_lap)
+    await until(lambda: r.callouts.phrased == 1)
+    for i in range(1, 200):
+        await publish(js, made("final_lap", "template", 11, created=at(i / 100)))
+        await asyncio.sleep(0.02)
+    await until(lambda: len(path.read_text().splitlines()) == 200, timeout=20)
+    timeline.close()
+    entries = read(path)
+    assert entries[-1]["callout_id"] == out_lap.id
+    assert entries[-1]["started"] == stamp(at(2))

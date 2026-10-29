@@ -16,6 +16,7 @@ from radio.phrasing import templates
 from radio.piper_voice import Voices
 from radio.service import Radio, redacted
 from radio.settings import Settings, from_env
+from radio.voice import VoiceError
 
 
 def fake_voices(settings: Settings, logger: logging.Logger) -> Voices:
@@ -186,6 +187,7 @@ async def test_speaks_to_wav_files_with_a_timeline(
 ) -> None:
     # R1, R5: the wav sink, instant on the replay's clock, and the timeline file.
     timeline = tmp_path / "timeline.jsonl"
+    (tmp_path / "fake.onnx").write_bytes(b"")
     r = radio(
         nats_server.url,
         log,
@@ -249,3 +251,19 @@ async def test_callouts_that_fail_stop_radio(
     with pytest.raises(RuntimeError, match="broken"):
         await asyncio.wait_for(r.run(asyncio.Event()), 10)
     assert msgs(log)[-1] == "stopped"
+
+
+async def test_the_wav_sink_needs_every_engineers_voice(
+    fake_nats: FakeNATS, log: io.StringIO, tmp_path: Path
+) -> None:
+    # Checked at start, not at the first callout.
+    r = radio(
+        fake_nats.url,
+        log,
+        sink="wav",
+        wav_dir=tmp_path / "wav",
+        cache_dir=tmp_path / "cache",
+        voice_model=tmp_path / "missing.onnx",
+    )
+    with pytest.raises(VoiceError, match="missing.onnx"):
+        await asyncio.wait_for(r.run(asyncio.Event()), 10)

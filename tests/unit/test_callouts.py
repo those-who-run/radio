@@ -517,3 +517,38 @@ async def test_another_engineer_words_the_same_callouts_differently(
         await r.kill()
     assert said["v1"] == ["Final lap.", "Down to third.", "Pit this lap."]
     assert len(said["other"]) == 3 and said["other"] != said["v1"]
+
+
+async def test_a_session_let_go_comes_back_with_its_engineer_and_seed(
+    start: Any, js: JetStreamContext, log: io.StringIO
+) -> None:
+    # radio keeps the phrasebooks of the last SESSIONS sessions: a callout of one
+    # let go starts its phrasebook again, from the same engineer and seed, so it
+    # gets the seed's first pick again.
+    def lap(session: str) -> callout_pb2.Callout:
+        return made(
+            "lap_time",
+            "delta_slower",
+            20,
+            session=session,
+            slots={"lap": 3, "lapTimeMs": 64611, "deltaMs": 700},
+        )
+
+    sessions = [f"01S{i:02d}" for i in range(callouts.SESSIONS + 1)]
+    sink = Recorder()
+    r = await start(sink, roster(script=True))
+    for s in sessions:
+        await publish(js, lap(s))
+    await until(lambda: len(sink.said) == len(sessions))
+    assert sessions[0] not in r.callouts._sessions
+    assert len(r.callouts._sessions) == callouts.SESSIONS
+    # The oldest again: chosen afresh, the same engineer, its seed's first pick.
+    await publish(js, lap(sessions[0]))
+    await until(lambda: len(sink.said) == len(sessions) + 1)
+    first = Phrases(templates(), seed=sessions[0]).say(from_message(lap(sessions[0])))
+    assert sink.said[0] == sink.said[-1] == first
+    chosen = [x for x in lines(log) if x["msg"] == "callouts: engineer"]
+    assert [(x["session_id"], x["engineer"]) for x in chosen if x["session_id"] == sessions[0]] == [
+        (sessions[0], "v1"),
+        (sessions[0], "v1"),
+    ]

@@ -8,6 +8,7 @@ model.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import wave
 from collections.abc import Callable
@@ -74,14 +75,22 @@ class Voices:
     ) -> None:
         self.cache = ClipCache(settings.cache_dir, settings.cache_max_mb * 1024 * 1024)
         self.logger = logger
-        self.load = load
+        self._load = load
         self._synths: dict[str, Synthesizer] = {}
 
     def get(self, engineer: Engineer) -> Synthesizer:
         synth = self._synths.get(engineer.name)
         if synth is None:
-            synth = open_synthesizer(engineer, self.cache, self.logger, self.load)
+            synth = open_synthesizer(engineer, self.cache, self.logger, self._load)
             self._synths[engineer.name] = synth
+        return synth
+
+    async def load(self, engineer: Engineer) -> Synthesizer:
+        """get, on a thread: checking and loading a model takes a second or more,
+        too long for the event loop. radio loads every engineer's at start, so
+        get never loads one while callouts are spoken."""
+        synth = await asyncio.to_thread(self.get, engineer)
+        await synth.warm_up()
         return synth
 
     def release(self, utterance: Utterance | None) -> None:

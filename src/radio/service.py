@@ -27,6 +27,7 @@ from radio.piper_voice import Voices
 from radio.settings import Settings
 from radio.sink import ConsoleSink, WavSink
 from radio.timing import SIMULATED, Timeline
+from radio.voice import VoiceError
 
 # How long nats-py waits between attempts at a server, at the first connection and
 # after a drop.
@@ -120,18 +121,24 @@ class Radio:
         assert self.nc is not None
         s = self.settings
         engineers = roster(s)
+        models = [e.voice_model for e in engineers.all()]
         sink: ConsoleSink
         if s.sink == "wav":
             assert s.wav_dir is not None
+            missing = [str(m) for m in models if not m.exists()]
+            if missing:
+                raise VoiceError(f"voice model missing: {', '.join(missing)} (run `make voice`)")
             sink = WavSink(self.out, self.voices(s, self.logger), s.wav_dir)
-        elif s.timing == SIMULATED and s.voice_model.exists():
-            # The simulated speaker measures each callout with the voice it has.
+        elif s.timing == SIMULATED and all(m.exists() for m in models):
+            # The simulated speaker measures each callout with the voices it has.
             sink = ConsoleSink(self.out, self.voices(s, self.logger))
         else:
             sink = ConsoleSink(self.out)
         if sink.voices is not None:
-            # Loaded and warm before the first callout (v1's App._startup).
-            await sink.voices.get(engineers.default).warm_up()
+            # Every engineer's voice, loaded off the event loop and warm before the
+            # first callout (v1's App._startup).
+            for e in engineers.all():
+                await sink.voices.load(e)
         timeline = Timeline(s.timeline_file)
         callouts = Callouts(
             self.nc, s.src, engineers, sink, self.logger, timing=s.timing, timeline=timeline

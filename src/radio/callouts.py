@@ -243,6 +243,8 @@ class Callouts[C]:
                     msgs = await sub.fetch(FETCH_BATCH, timeout=FETCH_WAIT)
                 except NATSTimeoutError:
                     continue
+                # Taking, the replay's clock waits for this batch.
+                self.replay.busy()
                 for msg in msgs:
                     got = True
                     if (p := await self._receive(level, msg)) is not None:

@@ -52,6 +52,8 @@ def test_the_roster_gives_the_configured_one_else_the_default() -> None:
     assert Roster([v1, other]).pick("a") is v1
     assert Roster([v1, other]).pick("") is v1
     assert Roster([v1, other], configured="other").pick("a") is other
+    # A stable order, whatever order the roster was built in.
+    assert Roster([v1, other]).all() == Roster([other, v1]).all() == [other, v1]
     with pytest.raises(ValueError, match="no engineer 'nobody'"):
         Roster([v1], configured="nobody")
     with pytest.raises(ValueError, match="no engineers"):

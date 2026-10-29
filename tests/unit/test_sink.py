@@ -111,3 +111,18 @@ async def test_the_wav_sink_writes_nothing_for_no_audio(voices: Voices, tmp_path
     await sink.play(Clip("...", 0.0), p)
     assert list((tmp_path / "wav").iterdir()) == []
     await sink.close()
+
+
+async def test_a_restarted_wav_sink_carries_on_numbering(voices: Voices, tmp_path: Path) -> None:
+    # A restart never overwrites what was said before it.
+    directory = tmp_path / "wav"
+    directory.mkdir()
+    (directory / "007-fuel.wav").write_bytes(b"")
+    (directory / "notes.txt").write_bytes(b"")
+    sink = WavSink(io.StringIO(), voices, directory)
+    p = pending("Final lap.")
+    clip = await sink.prepare(p)
+    assert clip is not None
+    await sink.play(clip, p)
+    await sink.close()
+    assert (directory / "008-final_lap.wav").exists()

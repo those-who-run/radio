@@ -42,8 +42,9 @@ class Engineer:
     voice: VoiceSettings
     # The phrases, by rule and key (radio.phrasing).
     templates: Templates
-    # How the engineer talks beyond the words of the script, such as how chatty it
-    # is: a later issue. Nothing reads it yet.
+    # How the engineer says things beyond the script: its wording, its choice of
+    # template variants, its voice. Never which callouts are said, nor how many:
+    # that is ecu's. A later issue; nothing reads it yet.
     personality: None = None
 
     def phrases(self, seed: str | None) -> Phrases:
@@ -72,10 +73,16 @@ class Roster:
         self.configured = configured
         self.default = engineers[0]
 
+    def all(self) -> list[Engineer]:
+        """Every engineer, sorted by name: a stable order for a seeded pick, and
+        what radio loads and checks at start."""
+        return [self.engineers[name] for name in sorted(self.engineers)]
+
     def pick(self, session_id: str) -> Engineer:
         """The engineer for session_id: the configured one, else the default. With
-        several, the else becomes a random pick seeded by session_id, so a replay
-        of the session gets the same one."""
+        several, the else becomes a random pick seeded by session_id from `all()`,
+        sorted by name so the order the roster was built in can't change it, and a
+        replay of the session gets the same one."""
         if self.configured is not None:
             return self.engineers[self.configured]
         return self.default
