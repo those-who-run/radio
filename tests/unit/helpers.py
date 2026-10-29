@@ -1,11 +1,13 @@
-"""What the tests share: a stand-in NATS server, and a GET for /healthz. conftest.py
-makes fixtures of them."""
+"""What the tests share: a stand-in NATS server, a GET for /healthz, and a fake voice
+with WAV helpers. conftest.py makes fixtures of them."""
 
 from __future__ import annotations
 
 import asyncio
 import io
 import json
+import wave
+from pathlib import Path
 
 
 class FakeNATS:
@@ -73,3 +75,37 @@ async def until(check: object, timeout: float = 5.0) -> None:
     async with asyncio.timeout(timeout):
         while not check():
             await asyncio.sleep(0.01)
+
+
+# The fake voice's sample rate: one frame a character makes lengths easy to count.
+RATE = 1000
+
+
+class FakeVoice:
+    """A Voice for the tests: one frame of 0x0001 for each character of the sentence,
+    mono, 16-bit, at RATE. key names the voice, so two fakes can differ."""
+
+    def __init__(self, key: str = "fake") -> None:
+        self.key = key
+        self.calls: list[str] = []
+
+    def synthesize_wav(self, text: str, wav: wave.Wave_write) -> None:
+        self.calls.append(text)
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(RATE)
+        wav.writeframes(b"\x01\x00" * len(text))
+
+
+def write_wav(path: Path, frames: int) -> Path:
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(b"\x01\x00" * frames)
+    return path
+
+
+def frames(path: Path) -> bytes:
+    with wave.open(str(path), "rb") as w:
+        return w.readframes(w.getnframes())

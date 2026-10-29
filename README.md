@@ -31,15 +31,54 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_HEALTH_ADDR` | `:8080` | Where `GET /healthz` listens, `host:port`; an empty host is every interface. |
 | `TWR_LOG_LEVEL` | `info` | The lowest level logged: `debug`, `info`, `warn` or `error`. |
 | `TWR_LOG_FORMAT` | `text` (`json` in the image) | `text` writes logfmt, `json` one object a line. |
+| `TWR_RADIO_VOICE_MODEL` | `voices/en_GB-alba-medium.onnx` (the baked-in voice in the image) | The Piper voice, an `.onnx` file with its `.onnx.json` beside it. |
+| `TWR_RADIO_RULES_FILE` | unset: v1's defaults | A YAML file whose `voice:` section tunes the voice ([The voice](#the-voice)). |
+| `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
+| `TWR_RADIO_CACHE_MAX_MB` | `100` | The sentence cache's cap, in MiB; the least recently used sentence goes first. |
 
 A value radio can't read stops it at start with exit code 2.
+
+## The voice
+
+radio speaks with Piper and v1's voice, `en_GB-alba-medium`, sentence by
+sentence with a pause between sentences, caching each sentence so a phrase
+said before is not made again (paddock#57). It is not wired to callouts yet:
+taking them (paddock#56) and the Discord sink (paddock#58) come next.
+
+The model is never committed. `make voice` fetches it into `voices/` from the
+pinned [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/en/en_GB/alba/medium)
+release and checks both files against [`src/radio/voices/SHA256SUMS`](src/radio/voices/SHA256SUMS),
+v1's sums; the image bakes it in the same way, and radio checks a known voice
+again when it loads it. A voice of your own is a path in `TWR_RADIO_VOICE_MODEL`;
+radio has no sums for it, so it logs `voice model not checked`.
+
+The `voice:` section takes v1's keys, so v1's rules file can be mounted as it is;
+radio reads nothing else in it:
+
+```yaml
+voice:
+  length_scale: 0.9           # under 1 speaks faster (the default)
+  # noise_scale: 0.5          # variation in the voice
+  # noise_w_scale: 0.5        # variation in the timing
+  # speaker_id: 0             # in a voice with several speakers
+  sentence_pause_secs: 0.35   # silence between sentences (the default)
+```
+
+The tests use a fake voice, so `make check` and CI need no model.
+`make voice-test` runs the synthesiser against the real one, at
+`TWR_RADIO_VOICE_MODEL` or the one `make voice` fetched; it is not part of
+`make check`.
+
+The voice's attribution (CC BY 4.0) is in [`NOTICE`](NOTICE).
 
 ## The image
 
 `ghcr.io/those-who-run/twr-radio`, built from the [`Dockerfile`](Dockerfile)
 on every PR by CI's `image / build`, which runs it as its non-root user
 (65532) with a read-only root filesystem, against no NATS and against
-`nats-server -js`. Locally, `make image`.
+`nats-server -js`. Locally, `make image`. It carries the voice, and its speech
+cache is `/tmp/.cache/twr-radio`: with the read-only root, mount a tmpfs or a
+volume on `/tmp`.
 
 ## Checks
 

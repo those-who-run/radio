@@ -8,6 +8,8 @@ license = "GPL-3.0-only"
 requires-python = ">=3.14"
 dependencies = [
   "nats-py==2.16.0", # the NATS client (paddock#55: the stable one, asyncio)
+  "piper-tts==1.8.0", # the voice, as v1 (paddock#57); onnxruntime under it holds radio on 3.14
+  "pyyaml==6.0.3", # the voice: settings file, v1's rules file format (paddock#57)
 ]
 
 [project.scripts]
@@ -22,6 +24,7 @@ dev = [
   "pytest>=9.2",
   "pytest-asyncio>=1.4",
   "ruff>=0.17",
+  "types-pyyaml>=6.0.12",
 ]
 
 [build-system]
@@ -36,13 +39,13 @@ line-length = 100
 target-version = "py314"
 # The package and its tests. The scripts in scripts/ and the unittest tests beside
 # them in tests/ are copies from paddock and .github, kept as they are there.
-include = ["src/**/*.py", "tests/unit/**/*.py"]
+include = ["src/**/*.py", "tests/unit/**/*.py", "tests/voice/**/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.mypy]
-files = ["src", "tests/unit"]
+files = ["src", "tests/unit", "tests/voice"]
 strict = true
 warn_unreachable = true
 
