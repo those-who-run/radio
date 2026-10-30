@@ -36,5 +36,5 @@ wait_for() {
   echo "GET :$1/healthz did not match '$2', or the log has no '$3', within 10 s: $body" >&2
   return 1
 }
-wait_for 8080 '*"connected": false}*503' '"msg": "nats error"' "$alone"
-wait_for 8081 '*"connected": true}*200' '"msg": "ready"' "$with"
+wait_for 8080 '*"connected": false, "ok": false,*503' '"msg": "nats error"' "$alone"
+wait_for 8081 '*"connected": true, "ok": true,*200' '"msg": "ready"' "$with"
