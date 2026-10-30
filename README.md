@@ -22,9 +22,21 @@ radio serves `GET /healthz`, connects to NATS and logs `ready`, then takes
 its source's callouts and speaks them ([The callouts](#the-callouts)) to the
 console or to WAV files ([Sinks and timing](#sinks-and-timing)). Until NATS
 answers it retries, logging each failed attempt, and `/healthz` answers 503;
-once connected it answers 200. Either way the body is
-`{"status": "ok" | "unavailable", "version": "…", "connected": true | false}`,
-with `"voice_connected": true | false` beside them for the `discord` sink.
+once connected, and while none of its tasks has stopped, it answers 200 with
+`"ok": true`. Either way the body is
+`{"status": "ok" | "unavailable", "version": "…", "connected": true | false, "ok": true | false}`,
+then `idle` (nothing queued or playing) and radio's status: `src`, `sink`, and
+`last_spoken_at` once it has spoken, with `voice_connected` and `voice_listeners`
+(`null` until radio knows) for the `discord` sink.
+
+Once connected, radio keeps the same status in NATS KV, the `live` bucket's
+`radio.status.<src>` key, as contracts' `RadioStatus` (paddock#62): written when it
+changes, at most once a second, and at least every 5 s while radio runs, so a value
+whose `updatedAt` is far older than that means radio is gone. The key is the
+source's, so a replay's radio never writes the live one. A failed write, as before
+the bucket exists, is logged once and tried again. After each callout it plays,
+radio logs `played (<rule>) in N.N s` with the callout's `id`: when the audio
+really finished.
 SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 `radio --version` prints the version.
 

@@ -1095,7 +1095,7 @@ requires-dist = [
     { name = "nats-py", specifier = "==2.16.0" },
     { name = "piper-tts", specifier = "==1.8.0" },
     { name = "pyyaml", specifier = "==6.0.3" },
-    { name = "twr-contracts", git = "https://github.com/those-who-run/contracts?subdirectory=gen%2Fpython&rev=v0.2.3" },
+    { name = "twr-contracts", git = "https://github.com/those-who-run/contracts?subdirectory=gen%2Fpython&rev=v0.2.4" },
 ]
 
 [package.metadata.requires-dev]
@@ -1136,8 +1136,8 @@ wheels = [
 
 [[package]]
 name = "twr-contracts"
-version = "0.2.3"
-source = { git = "https://github.com/those-who-run/contracts?subdirectory=gen%2Fpython&rev=v0.2.3#8c044487652c4edf80157cf4c6f8eb7723e4136e" }
+version = "0.2.4"
+source = { git = "https://github.com/those-who-run/contracts?subdirectory=gen%2Fpython&rev=v0.2.4#5761508513353f32c08714590fe1821bb8a5e348" }
 dependencies = [
     { name = "protobuf" },
 ]

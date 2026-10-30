@@ -4,6 +4,7 @@ client: no network. The service tests run it against the real nats-server."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import json
 import logging
@@ -14,9 +15,13 @@ from typing import Any
 import nats
 import pytest
 from helpers import DISCORD, TOKEN, FakeVoice, get, lines, until, write_wav
+from nats.js.api import KeyValueConfig
 from nats.js.client import JetStreamContext
+from nats.js.errors import KeyNotFoundError
 from natsserver import NATSServer
 from test_callouts import made, publish
+from twr.state.v1 import live_pb2
+from twr_contracts import ce
 
 from radio import discord_sink, logs, service
 from radio.__main__ import main
@@ -544,3 +549,53 @@ async def test_closed_it_ignores_a_late_event(tmp_path: Path) -> None:
     s.active(0.0)
     await s.check_idle(0.0)
     assert g.chan.connects == [] and s._joining is None
+
+
+async def test_the_live_bucket_says_voice_dropped_within_a_second(
+    nats_server: NATSServer, js: JetStreamContext, log: io.StringIO, tmp_path: Path
+) -> None:
+    # paddock#62 AC5, R9: radio.status.<src> in the live bucket says
+    # voice_connected, and changes within 1 s of a voice drop.
+    with contextlib.suppress(Exception):
+        await js.delete_key_value("live")
+    kv = await js.create_key_value(KeyValueConfig(bucket="live", history=1))
+    g = FakeGateway()
+    r = discord_radio(nats_server.url, tmp_path, g, "kvlive")
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+
+    async def value() -> live_pb2.RadioStatus | None:
+        try:
+            entry = await kv.get("radio.status.kvlive")
+        except KeyNotFoundError:
+            return None
+        m = live_pb2.RadioStatus()
+        ce.unmarshal(entry.value or b"", m)
+        return m
+
+    async def says(connected: bool) -> bool:
+        v = await value()
+        return v is not None and v.HasField("voice_connected") and v.voice_connected is connected
+
+    async def wait(connected: bool, timeout: float) -> None:
+        async with asyncio.timeout(timeout):
+            while not await says(connected):
+                await asyncio.sleep(0.02)
+
+    try:
+        await until(lambda: "callouts: taking" in msgs(log))
+        await wait(False, 5)
+        nc = await nats.connect(nats_server.url)
+        await nc.publish("twr.v1.kvlive.evt.S1.session.started", b"{}")
+        await wait(True, 5)
+        v = await value()
+        assert v is not None and (v.source, v.sink) == ("kvlive", live_pb2.RADIO_SINK_DISCORD)
+        # A second on, the writer may write again at once.
+        await asyncio.sleep(1.1)
+        g.chan.made[0].connected = False
+        await wait(False, 1.0)
+        await nc.close()
+    finally:
+        stop.set()
+        await asyncio.wait_for(task, 10)
+        await js.delete_key_value("live")

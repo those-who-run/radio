@@ -597,3 +597,28 @@ async def test_cancelled_it_lets_go_of_its_subscriptions(start: Any, js: JetStre
     assert r.callouts._subs == []
     # Only nats-py's own inbox for requests is left.
     assert all(s.subject.startswith("_INBOX.") for s in r.nc._subs.values())
+
+
+async def test_played_says_when_the_audio_finished(
+    start: Any, js: JetStreamContext, log: io.StringIO
+) -> None:
+    # paddock#62 R8: a "played (rule) in N.N s" line at playback's end, with the
+    # callout's id; radio is idle again and knows when it last spoke.
+    sink = Recorder(playing=0.3)
+    r = await start(sink)
+    await until(lambda: r.callouts._subs)
+    before = r.callouts.last_spoken_at
+    assert r.callouts.idle and before is None
+    m = made("final_lap", "template", 10)
+    await publish(js, m)
+    # Not idle while it plays, though it was acked as it started (R9).
+    await until(lambda: bool(sink.started))
+    assert not sink.said and not r.callouts.idle
+    await until(lambda: any(str(x["msg"]).startswith("played") for x in lines(log)))
+    [played] = [x for x in lines(log) if str(x["msg"]).startswith("played")]
+    prefix, secs = str(played["msg"]).removesuffix(" s").rsplit(" in ", 1)
+    assert prefix == "played (final_lap)" and 0.3 <= float(secs) < 2.0
+    assert (played["id"], played["rule"]) == (m.id, "final_lap")
+    await until(lambda: r.callouts.idle)
+    spoken = r.callouts.last_spoken_at
+    assert spoken is not None and spoken >= sink.at[0] - timedelta(seconds=0.1)

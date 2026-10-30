@@ -23,10 +23,13 @@ async def server() -> AsyncIterator[HealthServer]:
 async def test_unavailable_until_connected(server: HealthServer) -> None:
     assert await get(server.port) == (
         503,
-        {"status": "unavailable", "version": "1.2.3", "connected": False},
+        {"status": "unavailable", "version": "1.2.3", "connected": False, "ok": False},
     )
     state["connected"] = True
-    assert await get(server.port) == (200, {"status": "ok", "version": "1.2.3", "connected": True})
+    assert await get(server.port) == (
+        200,
+        {"status": "ok", "version": "1.2.3", "connected": True, "ok": True},
+    )
     assert (await get(server.port, "/healthz?verbose=1"))[0] == 200
 
 
@@ -55,3 +58,42 @@ async def test_a_client_that_hangs_up(server: HealthServer) -> None:
     await writer.wait_closed()
     # The server is still there for the next one.
     assert (await get(server.port))[0] == 503
+
+
+async def test_not_ok_once_a_task_stopped_and_the_details_beside() -> None:
+    # paddock#62 R9: ok is NATS connected and radio's tasks alive; the details,
+    # idle and radio's status, follow.
+    alive = {"tasks": True}
+    srv = HealthServer(
+        "127.0.0.1",
+        0,
+        "1.2.3",
+        lambda: True,
+        logging.getLogger("t"),
+        lambda: alive["tasks"],
+        lambda: {"idle": True, "src": "live", "sink": "console"},
+    )
+    await srv.start()
+    try:
+        assert await get(srv.port) == (
+            200,
+            {
+                "status": "ok",
+                "version": "1.2.3",
+                "connected": True,
+                "ok": True,
+                "idle": True,
+                "src": "live",
+                "sink": "console",
+            },
+        )
+        alive["tasks"] = False
+        status, body = await get(srv.port)
+        assert (status, body["status"], body["connected"], body["ok"]) == (
+            503,
+            "unavailable",
+            True,
+            False,
+        )
+    finally:
+        await srv.close()
