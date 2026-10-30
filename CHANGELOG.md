@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/those-who-run/radio/compare/v0.1.2...v0.1.3) (2026-10-30)
+
+
+### Features
+
+* **radio:** its status in the live bucket, and when each callout finished ([#25](https://github.com/those-who-run/radio/issues/25)) ([171f1d6](https://github.com/those-who-run/radio/commit/171f1d6b7594e40a8cf064f7d7c40e96b11b9ae3))
+* **radio:** know who is listening, and warn when talking to an empty channel ([#26](https://github.com/those-who-run/radio/issues/26)) ([777b5fa](https://github.com/those-who-run/radio/commit/777b5fa7eb68c1a8885757679baedfc1df7741b1))
+
 ## [0.1.2](https://github.com/those-who-run/radio/compare/v0.1.1...v0.1.2) (2026-10-30)
 
 
