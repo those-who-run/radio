@@ -155,7 +155,11 @@ phrase key, with no rules of its own ([`callouts.py`](src/radio/callouts.py)):
   `speak` one is said. It goes by the times, a callout created before the
   entry's `entered_at` that the speaker comes to after it, so a replay at any
   speed says the same. The pit and session events come on a plain subscription
-  to the source's events, so a radio started in the lane doesn't know it.
+  to the source's events. So that a radio started in the lane, or whose NATS
+  connection came back during a stop, knows it, radio also reads ecu's pit state
+  (`ecu.pit.<src>` in the `live` bucket, paddock#325) at start and after each
+  reconnect, and logs it as `pit lane at start: in` or `out`: in the lane, it
+  is as if the entry had come at the read. The events win over the read.
 - **One at a time.** The next is taken only once the last was spoken or dropped;
   one that fails to play is logged and the next is still spoken.
 - **Acks.** A callout is acked when radio starts to say it or drops it. One taken

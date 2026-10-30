@@ -127,10 +127,14 @@ async def test_reconnects_after_nats_restarts(
     fake_nats: FakeNATS, log: io.StringIO, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(service, "RETRY_WAIT", 0.02)
+    # The connection back reads ecu's pit state again (paddock#325, AC3).
+    reread: list[bool] = []
+    monkeypatch.setattr(callouts.Callouts, "reconnected", lambda self: reread.append(True))
     r = radio(fake_nats.url, log)
     stop = asyncio.Event()
     task = asyncio.create_task(r.run(stop))
     await until(lambda: "ready" in msgs(log))
+    await until(lambda: r.callouts is not None)
     await fake_nats.close()
     await until(lambda: "nats disconnected" in msgs(log))
     assert (await get(r.health.port))[0] == 503
@@ -138,6 +142,7 @@ async def test_reconnects_after_nats_restarts(
     await again.start()
     try:
         await until(lambda: "nats reconnected" in msgs(log))
+        assert reread == [True]
         assert (await get(r.health.port)) == (
             200,
             {"status": "ok", "version": "1.2.3", "connected": True, "ok": True, **IDLE},
