@@ -116,7 +116,7 @@ class Radio:
     def voice_listeners(self) -> int | None:
         """How many can hear radio in the voice channel (paddock#61); None without
         the discord sink, and before the first voice state."""
-        return self.sink.listeners if isinstance(self.sink, DiscordSink) else None
+        return self.sink.current_listeners() if isinstance(self.sink, DiscordSink) else None
 
     def voice_connected(self) -> bool | None:
         """Whether Discord voice is up; None without the discord sink."""
