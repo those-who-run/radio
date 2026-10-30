@@ -175,6 +175,8 @@ class Callouts[C]:
         self._sessions: OrderedDict[str, tuple[Engineer, Phrases]] = OrderedDict()
         # The callouts taken and not yet settled, by stream sequence.
         self._held: dict[int, Pending] = {}
+        # The callout playing, acked already so no longer held.
+        self._playing: Pending | None = None
         # The stream sequences settled (said or dropped), oldest first.
         self._settled: dict[int, None] = {}
         self._subs: list[tuple[callout.Level, JetStreamContext.PullSubscription]] = []
@@ -195,7 +197,7 @@ class Callouts[C]:
     @property
     def idle(self) -> bool:
         """Nothing taken is waiting, held in the pit lane, or playing."""
-        return not self._held
+        return not self._held and self._playing is None
 
     async def _unsubscribe(self) -> None:
         """Let go of the subscriptions, so draining the connection at shutdown
@@ -440,8 +442,12 @@ class Callouts[C]:
                     await self._drop(p, SYNTHESIS, now())
                     return finished
                 started = now()
-                await self._settle(p, sync=True)
-                await self.sink.play(clip, p)
+                self._playing = p
+                try:
+                    await self._settle(p, sync=True)
+                    await self.sink.play(clip, p)
+                finally:
+                    self._playing = None
                 if at is not None:
                     # The simulated speaker holds the channel for the clip; instant
                     # takes no time.

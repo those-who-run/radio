@@ -611,6 +611,9 @@ async def test_played_says_when_the_audio_finished(
     assert r.callouts.idle and before is None
     m = made("final_lap", "template", 10)
     await publish(js, m)
+    # Not idle while it plays, though it was acked as it started (R9).
+    await until(lambda: bool(sink.started))
+    assert not sink.said and not r.callouts.idle
     await until(lambda: any(str(x["msg"]).startswith("played") for x in lines(log)))
     [played] = [x for x in lines(log) if str(x["msg"]).startswith("played")]
     prefix, secs = str(played["msg"]).removesuffix(" s").rsplit(" in ", 1)
