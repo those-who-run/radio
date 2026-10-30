@@ -154,6 +154,11 @@ class Gateway(Protocol):
         it; the name is None for the bot's own."""
         ...
 
+    def listeners(self, channel_id: int) -> int | None:
+        """The channel's listener count now, from the gateway's cache; None when the
+        channel isn't known yet."""
+        ...
+
 
 class DiscordSink(ConsoleSink):
     """Each callout synthesised in its engineer's voice and played in the voice
@@ -370,6 +375,15 @@ class DiscordSink(ConsoleSink):
                 extra["by"] = by
             self.logger.info(f"voice: {name} {change}", extra=extra)
 
+    def current_listeners(self) -> int | None:
+        """The count from the channel's voice states now. The events alone can miss
+        a change: after a gateway outage discord.py rebuilds its cache without
+        sending them, so a listener who left meanwhile would still count."""
+        n = self.gateway.listeners(self.channel_id)
+        if n is not None:
+            self.listeners = n
+        return self.listeners
+
     def _heard(self, callout: Pending) -> None:
         """The first callout played to no one in a session warns, once."""
         if self.listeners != 0:
@@ -413,13 +427,15 @@ class DiscordSink(ConsoleSink):
         source = self.gateway.source(clip.utterance.path)
         try:
             c = callout.callout
-            to = "" if self.listeners is None else f" to {listeners(self.listeners)}"
+            n = self.current_listeners()
+            to = "" if n is None else f" to {listeners(n)}"
             self.logger.info(
                 f"speaking ({c.rule}){to}: {callout.text}",
-                extra={"rule": c.rule, "id": c.id, "listeners": self.listeners},
+                extra={"rule": c.rule, "id": c.id, "listeners": n},
             )
-            self._heard(callout)
             vc.play(source, after=after)
+            # Only once it plays: a callout that never started warns no one.
+            self._heard(callout)
         except BaseException:
             # play never started: nothing else will clean the source up.
             source.cleanup()

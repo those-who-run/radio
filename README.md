@@ -275,8 +275,10 @@ while v1 is live.
   state in its channel is one INFO line with their display name, and no id:
   `voice: <name> joined`, `left`, `moved in`, `moved out`, `muted`, `unmuted`,
   `deafened` or `undeafened`, with `by` `self` or `server`. The listeners are the
-  members in the channel who are not bots and not deafened. They are `null`
-  until the first voice state, radio's own join included. Each speaking line
+  members in the channel who are not bots and not deafened, counted from the
+  channel as it is when radio speaks or reports, so a change missed while the
+  gateway was down still counts. They are `null` until the channel is known or
+  the first voice state, radio's own join included. Each speaking line
   carries the count, as in `speaking (lap_time) to 1 listener: …`. So do
   `/healthz` and the `live` bucket's status, as `voice_listeners`. The first
   callout played to 0 listeners in a session logs one WARNING,
