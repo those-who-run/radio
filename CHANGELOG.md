@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.4](https://github.com/those-who-run/radio/compare/v0.1.3...v0.1.4) (2026-10-30)
+
+
+### Features
+
+* **radio:** read ecu's pit state at start and after a reconnect ([#28](https://github.com/those-who-run/radio/issues/28)) ([73d5d17](https://github.com/those-who-run/radio/commit/73d5d17f35b8f8ec58f72aedccdcd3c0f3b62818))
+
+
+### Bug Fixes
+
+* **radio:** count listeners from the channel when speaking, and warn only once a callout plays ([#29](https://github.com/those-who-run/radio/issues/29)) ([78e4d63](https://github.com/those-who-run/radio/commit/78e4d63155af4c882b2d845cfb6b66dc798c78ce))
+
 ## [0.1.3](https://github.com/those-who-run/radio/compare/v0.1.2...v0.1.3) (2026-10-30)
 
 
