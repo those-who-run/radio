@@ -34,8 +34,24 @@ times, a replay at any speed says what v1 said. Every time is ecu's frame time i
 UTC, as the contract says: entered_at and exited_at, and the ce-time of a
 PitTeleport or RaceFinished, which carry no UTC time of their own.
 
+Started in the lane (paddock#325). The events say when the lane opens, so a radio
+started, or whose NATS connection drops, while the car is in the lane misses the
+entry. ecu keeps the car's pit state in the `live` bucket (`ecu.pit.<src>`,
+contracts' PitState), and radio reads it at start and when its connection comes
+back: in the lane, it is as if the entry had come at the read (`from_state`).
+PitState carries no entry time, and the read's time does as well: ecu publishes
+no `hold` or `drop` callout raised in the lane until the exit, as raised then, so
+every one radio holds that was created before the read was raised before the
+entry too. The lane opened so is the session's entry FROM_STATE until an event
+names it: its PitEntered takes it over at the event's time, and the exit or
+withdrawal of an entry radio never saw ends it. The events win: a read is let be
+when a pit event came during it, when radio saw more exits in the session than
+the key's stops (the key not rewritten yet), when the session ended, or when the
+session has a lane open already. A key from another session opens that session's
+lane, which only its own callouts look at.
+
 Who decides. radio decides nothing here: the policy is the callout's, as ecu
-published it, and the lane is ecu's events.
+published it, and the lane is ecu's events and pit state.
 """
 
 from __future__ import annotations
@@ -51,6 +67,9 @@ from radio.queue import HELD, MOVED, PIT_DROP, Pending
 
 # How many sessions' lanes radio keeps, as callouts.SESSIONS.
 SESSIONS = 16
+
+# The entry of a lane opened from ecu's pit state: entries count from 1.
+FROM_STATE = 0
 
 SPEAK = callout_pb2.PIT_LANE_SPEAK
 DROP = callout_pb2.PIT_LANE_DROP
@@ -74,6 +93,10 @@ class _Session:
     lanes: dict[int, Lane] = field(default_factory=dict)
     # The flag fell (RaceFinished).
     finished: bool = False
+    # The stops completed, as the PitExited events radio saw.
+    exits: int = 0
+    # The session ended (SessionEnded, SessionDiscarded).
+    over: bool = False
 
 
 class PitLane:
@@ -83,6 +106,8 @@ class PitLane:
     def __init__(self, logger: logging.Logger) -> None:
         self.logger = logger
         self._sessions: OrderedDict[str, _Session] = OrderedDict()
+        # The pit events seen, so a read of ecu's pit state knows one came during it.
+        self.events = 0
 
     def _session(self, session_id: str) -> _Session:
         if (s := self._sessions.get(session_id)) is not None:
@@ -98,26 +123,39 @@ class PitLane:
     def entered(self, session_id: str, entry: int, t: datetime) -> None:
         """PitEntered: the lane opens at t. One sent again (an ecu restart) is the
         same entry."""
+        self.events += 1
         s = self._session(session_id)
         if entry in s.lanes:
             return
         # After the flag, v1 released what it held on the frame it held it.
         s.lanes[entry] = Lane(t, t if s.finished else None)
+        if (read := s.lanes.get(FROM_STATE)) is not None and _open(read):
+            # The entry read from ecu's pit state: the event's time is ecu's own.
+            del s.lanes[FROM_STATE]
+            s.lanes[entry].held = read.held
         self.logger.info(
             "pit lane: entered", extra={"session_id": session_id, "entry": entry, "at": t}
         )
 
-    def left(self, session_id: str, entry: int, t: datetime) -> list[Pending]:
-        """PitExited or a PitTeleport withdrawing the entry: the lane ends at t.
-        Returns the callouts it held, as raised at t, to queue again."""
-        lane = self._session(session_id).lanes.get(entry)
-        if lane is None or lane.left is not None or lane.cleared:
+    def left(self, session_id: str, entry: int, t: datetime, exit: bool = True) -> list[Pending]:
+        """PitExited (exit) or a PitTeleport withdrawing the entry: the lane ends at
+        t. Returns the callouts it held, as raised at t, to queue again."""
+        self.events += 1
+        s = self._session(session_id)
+        if exit:
+            s.exits += 1
+        lane = s.lanes.get(entry)
+        if lane is None:
+            # Entered before radio knew, as ecu's pit state said.
+            lane = s.lanes.get(FROM_STATE)
+        if lane is None or not _open(lane):
             return []
         lane.left = t
         return self._release(lane)
 
     def finished(self, session_id: str, t: datetime) -> list[Pending]:
         """RaceFinished: a lane still open ends at the flag, t, with no exit."""
+        self.events += 1
         s = self._session(session_id)
         s.finished = True
         out = []
@@ -130,9 +168,9 @@ class PitLane:
     def ended(self, session_id: str) -> list[Pending]:
         """SessionEnded or SessionDiscarded: a lane still open is cleared. Returns
         the callouts it held, to drop."""
-        s = self._sessions.get(session_id)
-        if s is None:
-            return []
+        self.events += 1
+        s = self._session(session_id)
+        s.over = True
         out = []
         for lane in s.lanes.values():
             if lane.left is None and not lane.cleared:
@@ -140,6 +178,28 @@ class PitLane:
                 out += lane.held
                 lane.held = []
         return out
+
+    def from_state(self, session_id: str, stops: int, t: datetime, events: int) -> bool:
+        """ecu's pit state says the car is in the lane of session_id, after stops
+        stops, read at t: the lane opens at t, as if entered then, unless the events
+        say otherwise (the module's doc). events is self.events before the read.
+        Says whether the lane was opened.
+
+        A rare case left as it is: once the race finishes in the lane, ecu
+        publishes the `hold` callouts raised after the flag at once. A radio that
+        starts or reconnects then, having missed the RaceFinished, doesn't know the
+        flag fell (PitState doesn't carry it), so it holds them, and the session's
+        end drops them where ecu and v1 said them."""
+        s = self._session(session_id)
+        if (
+            events != self.events
+            or s.over
+            or s.exits > stops
+            or any(_open(lane) for lane in s.lanes.values())
+        ):
+            return False
+        s.lanes[FROM_STATE] = Lane(t, t if s.finished else None)
+        return True
 
     def _release(self, lane: Lane) -> list[Pending]:
         assert lane.left is not None
@@ -151,10 +211,17 @@ class PitLane:
 
     # The queue's gate.
 
-    def check(self, p: Pending, now: datetime) -> str | None:
+    def check(self, p: Pending, now: datetime, expire: bool = True) -> str | None:
         """What the lane does to p, which the speaker has come to at now: None when
         nothing, PIT_DROP to drop it, HELD when the lane has taken it until its
-        end, MOVED when it is now as raised at the end of a lane already over."""
+        end, MOVED when it is now as raised at the end of a lane already over.
+
+        A stale callout (expire, and past its expires_at as of now, after any move
+        by a lane already over) is neither held nor dropped here: None lets the
+        queue drop it as expired, at the stage `queued`. A lane whose end never comes, such
+        as one read from a key a crashed ecu left for a session whose end radio
+        missed, would otherwise keep it unacked, and radio not idle, until radio
+        stops."""
         policy = p.callout.pit_lane
         if policy == SPEAK:
             return None
@@ -165,6 +232,9 @@ class PitLane:
         for lane in sorted(s.lanes.values(), key=lambda lane: lane.entered):
             if not p.created_at < lane.entered <= now:
                 continue
+            if expire and p.stale(now):
+                # Expired whatever the lane says: the queue drops it as such.
+                return None
             if policy == DROP or lane.cleared:
                 self.logger.info("callout dropped in the pit lane", extra=_about(p))
                 return PIT_DROP
@@ -178,6 +248,10 @@ class PitLane:
             self.logger.info("callout released at the pit exit", extra=_about(p))
             verdict = MOVED
         return verdict
+
+
+def _open(lane: Lane) -> bool:
+    return lane.left is None and not lane.cleared
 
 
 def moved(p: Pending, t: datetime) -> None:

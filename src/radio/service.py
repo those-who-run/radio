@@ -130,6 +130,9 @@ class Radio:
 
     async def _reconnected(self) -> None:
         self.logger.info("nats reconnected")
+        if self.callouts is not None:
+            # The pit entry may have come while NATS was away (paddock#325).
+            self.callouts.reconnected()
 
     async def _error(self, err: Exception) -> None:
         # Among them each failed attempt to connect, while radio retries.

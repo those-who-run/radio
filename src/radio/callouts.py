@@ -46,8 +46,10 @@ how a callout is said, never which callouts are said, nor when.
 The pit lane (radio.pitlane, paddock#59). ecu applies each callout's pit_lane to
 what it raises in the lane; radio takes back what was still queued at the entry,
 as v1's queue did. It follows the source's pit entries, exits, withdrawn entries,
-flags and session ends with a plain subscription to its events, so a radio
-started or restarted in the lane doesn't know the lane until its next entry.
+flags and session ends with a plain subscription to its events, and reads ecu's
+pit state (`ecu.pit.<src>` in the `live` bucket, paddock#325) once subscribed and
+each time its NATS connection comes back, so a radio started in the lane, or that
+lost the entry with its connection, knows the lane.
 
 When (radio.timing). Live, on the wall clock, each callout takes as long as the
 sink takes to play it. A replay's callouts are said on the replay's own clock,
@@ -70,7 +72,10 @@ from nats.aio.msg import Msg
 from nats.aio.subscription import Subscription
 from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 from nats.js.client import JetStreamContext
+from nats.js.errors import KeyNotFoundError
+from nats.js.kv import KeyValue
 from twr.events.v1 import callout_pb2, pit_pb2, race_pb2, session_pb2
+from twr.state.v1 import live_pb2
 from twr_contracts import callout, ce
 
 from radio.callout import from_message
@@ -128,6 +133,8 @@ PLAYING = "playing"
 # The stages a stale callout is dropped at: it expired, where the others were
 # dropped.
 STALE = (QUEUED, CONNECTING, SYNTHESIS)
+# The bucket ecu keeps the car's pit state in (contracts' subjects.yaml).
+BUCKET = "live"
 # How many sessions' phrasebooks radio keeps: a session's callouts after its
 # phrasebook was let go start a fresh one, from the same seed.
 SESSIONS = 16
@@ -183,6 +190,9 @@ class Callouts[C]:
         self._published = asyncio.Event()
         self._notify: Subscription | None = None
         self._events: Subscription | None = None
+        # The `live` bucket, for ecu's pit state; and the read after a reconnect.
+        self.kv: KeyValue | None = None
+        self._reading: asyncio.Task[None] | None = None
 
     async def run(self) -> None:
         """Take and speak until cancelled."""
@@ -192,6 +202,8 @@ class Callouts[C]:
                 tg.create_task(self._take())
                 tg.create_task(self._speak() if self.timing == LIVE else self._simulate())
         finally:
+            if self._reading is not None:
+                self._reading.cancel()
             await self._unsubscribe()
 
     @property
@@ -249,6 +261,42 @@ class Callouts[C]:
         self.logger.info(
             "callouts: taking", extra={"src": self.src, "stream": STREAM, "timing": self.timing}
         )
+        # After the events, so an event during the read is known.
+        await self.read_pit("at start")
+
+    def reconnected(self) -> None:
+        """NATS is back: read ecu's pit state again, off nats-py's reconnect."""
+        if self._events is None or (self._reading is not None and not self._reading.done()):
+            return
+        self._reading = asyncio.ensure_future(self.read_pit("after reconnect"))
+
+    async def read_pit(self, when: str) -> None:
+        """Read ecu's pit state, `ecu.pit.<src>` (paddock#325): in the lane, the
+        lane opens now (radio.pitlane's `from_state`). A key that is missing, says
+        out, or can't be read changes nothing."""
+        key = f"ecu.pit.{self.src}"
+        events = self.pits.events
+        state = live_pb2.PitState()
+        try:
+            if self.kv is None:
+                self.kv = await self.nc.jetstream().key_value(BUCKET)
+            entry = await self.kv.get(key)
+            ce.unmarshal(entry.value or b"{}", state)
+        except KeyNotFoundError:
+            pass  # No session open.
+        except Exception as err:  # NATS away, the bucket not there, or unreadable.
+            self.logger.warning(f"pit lane {when}: not read", extra={"key": key, "err": _err(err)})
+            return
+        if not state.in_pit_lane:
+            self.logger.info(
+                f"pit lane {when}: out", extra={"key": key, "session_id": state.session_id}
+            )
+            return
+        applied = self.pits.from_state(state.session_id, state.stops, self.clock(), events)
+        self.logger.info(
+            f"pit lane {when}: in",
+            extra={"key": key, "session_id": state.session_id, "applied": applied},
+        )
 
     async def _on_publish(self, msg: Msg) -> None:
         self._published.set()
@@ -274,7 +322,7 @@ class Callouts[C]:
                     self.pits.left(m.session_id, m.entry, m.exited_at.ToDatetime(tzinfo=UTC))
                 )
             case pit_pb2.PitTeleport():
-                self._release(self.pits.left(m.session_id, m.entry, t))
+                self._release(self.pits.left(m.session_id, m.entry, t, exit=False))
             case race_pb2.RaceFinished():
                 self._release(self.pits.finished(m.session_id, t))
             case session_pb2.SessionEnded() | session_pb2.SessionDiscarded():
