@@ -267,6 +267,16 @@ while v1 is live.
   discord.py is already reconnecting is adopted rather than joined over, and
   replaced only after 4 attempts that find it still down.
 - A clip plays for at most its length plus 5 s, then is stopped and logged.
+- radio knows who is listening (paddock#61). Each change of a member's voice
+  state in its channel is one INFO line with their display name, and no id:
+  `voice: <name> joined`, `left`, `moved in`, `moved out`, `muted`, `unmuted`,
+  `deafened` or `undeafened`, with `by` `self` or `server`. The listeners are the
+  members in the channel who are not bots and not deafened. They are `null`
+  until the first voice state, radio's own join included. Each speaking line
+  carries the count, as in `speaking (lap_time) to 1 listener: …`. So do
+  `/healthz` and the `live` bucket's status, as `voice_listeners`. The first
+  callout played to 0 listeners in a session logs one WARNING,
+  `voice: talking to an empty channel`.
 - The token goes to discord.py and nowhere else: every log line, radio's and
   every library's (through the root logger), has `[redacted]` wherever it would
   appear, and no status body holds it.

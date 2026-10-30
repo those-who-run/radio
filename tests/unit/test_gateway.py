@@ -5,13 +5,15 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+from types import SimpleNamespace
 from typing import Any
 
 import discord
 import pytest
 from helpers import TOKEN, lines
 
-from radio.gateway import Channel, DiscordGateway, intents, open_gateway
+from radio.discord_sink import ELSEWHERE, HERE, Seat
+from radio.gateway import Channel, DiscordGateway, count, intents, open_gateway, seat
 from radio.settings import Secret, Settings
 
 
@@ -144,3 +146,81 @@ def test_discord_voice_encryption_round_trips_on_this_pynacl() -> None:
     plain = nacl.secret.Aead(key).decrypt(packet[12:-4], header, nonce)
     assert plain == audio
     assert vc._incr_nonce == 8
+
+
+# paddock#61: who is in radio's channel.
+
+
+class Member:
+    def __init__(self, user_id: int, name: str, bot: bool = False) -> None:
+        self.id = user_id
+        self.display_name = name
+        self.bot = bot
+
+
+def state(channel: object = None, **flags: bool) -> Any:
+    return SimpleNamespace(
+        channel=channel,
+        **{k: flags.get(k, False) for k in ("self_mute", "mute", "self_deaf", "deaf")},
+    )
+
+
+class ListenedChannel(StubVoiceChannel):
+    """A channel with members in it, and the guild's member cache."""
+
+    def __init__(self, channel_id: int, states: dict[int, Any], members: list[Member]) -> None:
+        super().__init__()
+        self.id = channel_id
+        self._states = states
+        cache = {m.id: m for m in members}
+        self.guild = type(
+            "Guild", (), {"get_member": staticmethod(cache.get), "voice_client": None}
+        )()
+
+    @property
+    def voice_states(self) -> dict[int, Any]:
+        return self._states
+
+
+def test_the_count_leaves_out_bots_radio_and_the_deafened() -> None:
+    # R2: members who are not bots and not deafened, by themselves or the server;
+    # one the cache doesn't hold still counts.
+    ch = ListenedChannel(
+        7,
+        {
+            1: state(),
+            2: state(self_mute=True),
+            3: state(self_deaf=True),
+            4: state(deaf=True),
+            5: state(),  # another bot
+            9: state(self_deaf=True),  # radio
+            6: state(),  # not in the cache
+        },
+        [Member(1, "a"), Member(2, "b"), Member(3, "c"), Member(4, "d"), Member(5, "m", bot=True)],
+    )
+    assert count(ch, 9) == 3
+    assert count(ch, None) == 3
+
+
+async def test_voice_states_in_the_channel_reach_the_sink(log: io.StringIO) -> None:
+    # R1: only states that touch radio's channel, by display name and no id;
+    # radio's own with no name, so it only counts.
+    ch = ListenedChannel(7, {}, [Member(1, "Ciarán")])
+    ch._states[1] = state(ch)
+    other = SimpleNamespace(id=8)
+    events: dict[str, Any] = {}
+    client = StubClient(ch)
+    client.user = SimpleNamespace(id=9)  # type: ignore[attr-defined]
+    client.event = lambda fn: events.setdefault(fn.__name__, fn)  # type: ignore[attr-defined]
+    seen: list[tuple[Any, ...]] = []
+    gateway(client).watch(7, lambda *a: seen.append(a))
+    on = events["on_voice_state_update"]
+    await on(Member(1, "Ciarán"), state(), state(ch))
+    await on(Member(1, "Ciarán"), state(other), state(other, self_mute=True))
+    await on(Member(9, "radio"), state(), state(ch, self_deaf=True))
+    assert [(a[0], a[1].where, a[2].where, a[3]) for a in seen] == [
+        ("Ciarán", "nowhere", "here", 1),
+        (None, "nowhere", "here", 1),
+    ]
+    assert seat(state(ch, deaf=True), 7) == Seat(HERE, deaf=True)
+    assert seat(state(other), 7).where == ELSEWHERE
