@@ -179,6 +179,23 @@ def test_the_entry_and_exit_known_before_the_speaker_comes_to_it() -> None:
     assert found is not None and (found.created_at, found.expires_at) == (t(30), t(38))
 
 
+def test_a_callout_that_reaches_radio_after_the_entry_is_still_taken_back() -> None:
+    # AC5, reworded: raised before entered_at, it reaches radio after the
+    # PitEntered (CALLOUTS and EVENTS aren't ordered), and is still taken back by
+    # its pit_lane.
+    pits, q = queue()
+    pits.entered(S, 1, t(0.7))
+    q.push(pending("position", 12, DROP, created=0.5))
+    q.push(pending("lap_time", 20, HOLD, created=0.6))
+    q.push(pending("fuel", 15, SPEAK, created=0.6))
+    found, dropped = q.pop(t(1))
+    assert found is not None and found.callout.rule == "fuel"
+    assert [(p.callout.rule, stage) for p, stage in dropped] == [("position", PIT_LANE)]
+    assert q.pop(t(1)) == (None, [])
+    [p] = pits.left(S, 1, t(30))
+    assert (p.callout.rule, p.created_at) == ("lap_time", t(30))
+
+
 def test_what_ecu_raised_in_the_lane_or_released_is_not_taken_back() -> None:
     # Created at or after the entry: ecu applied the lane to it already.
     pits, q = queue()
