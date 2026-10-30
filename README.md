@@ -134,6 +134,16 @@ phrase key, with no rules of its own ([`callouts.py`](src/radio/callouts.py)):
   stage it was in: `queued` (which covers waiting while another plays),
   `connecting` or `synthesis`, each logged as `callout dropped` with its stage.
   Without `expires_at` it never goes stale.
+- **The pit lane** (paddock#59, [`pitlane.py`](src/radio/pitlane.py)). ecu
+  applies each callout's `pit_lane` to what it raises in the lane; radio takes
+  back only what was still queued when the car entered, as v1's queue did: a
+  `drop` callout is dropped (stage `pit lane`), a `hold` one is held to the exit,
+  a withdrawn entry (`pit.teleport`) or the flag (`race.finished`) and then said
+  as raised there, and dropped if the session ends in the lane otherwise; a
+  `speak` one is said. It goes by the times, a callout created before the
+  entry's `entered_at` that the speaker comes to after it, so a replay at any
+  speed says the same. The pit and session events come on a plain subscription
+  to the source's events, so a radio started in the lane doesn't know it.
 - **One at a time.** The next is taken only once the last was spoken or dropped;
   one that fails to play is logged and the next is still spoken.
 - **Acks.** A callout is acked when radio starts to say it or drops it. One taken
