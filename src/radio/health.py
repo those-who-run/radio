@@ -1,9 +1,13 @@
 """GET /healthz, on a small asyncio HTTP server of the standard library's parts.
 
-It answers 200 while radio is connected to NATS and 503 otherwise, with the same
-JSON either way, as logbook does: `status`, `version` and `connected`, and with the
-discord sink `voice_connected`, as v1 had (paddock#58 R7). Any other
-path is 404 and any other method 405. One request a connection, then it closes.
+It answers 200 while radio is healthy (`ok`: connected to NATS, and none of its
+tasks has stopped) and 503 otherwise, with the same JSON either way, as logbook
+does: `status`, `version`, `connected` and `ok`, then radio's details: `idle`
+(nothing queued or playing) and its status as the `live` bucket has it
+(radio.status: `src`, `sink`, and with the discord sink `voice_connected`, as v1
+had, paddock#58 R7, and `voice_listeners`; `last_spoken_at` once it has spoken),
+paddock#62 R9. Any other path is 404 and any other method 405. One request a
+connection, then it closes.
 """
 
 from __future__ import annotations
@@ -28,14 +32,16 @@ class HealthServer:
         version: str,
         connected: Callable[[], bool],
         logger: logging.Logger,
-        voice: Callable[[], bool | None] = lambda: None,
+        ok: Callable[[], bool] | None = None,
+        details: Callable[[], dict[str, object]] = dict,
     ) -> None:
         self._host = host or None  # None listens on every interface.
         self._port = port
         self._version = version
         self._connected = connected
         self._logger = logger
-        self._voice = voice
+        self._ok = ok or connected
+        self._details = details
         self._server: asyncio.Server | None = None
 
     @property
@@ -55,14 +61,15 @@ class HealthServer:
 
     def body(self) -> tuple[HTTPStatus, dict[str, object]]:
         connected = self._connected()
-        status = HTTPStatus.OK if connected else HTTPStatus.SERVICE_UNAVAILABLE
+        ok = connected and self._ok()
+        status = HTTPStatus.OK if ok else HTTPStatus.SERVICE_UNAVAILABLE
         body: dict[str, object] = {
-            "status": "ok" if connected else "unavailable",
+            "status": "ok" if ok else "unavailable",
             "version": self._version,
             "connected": connected,
+            "ok": ok,
         }
-        if (voice := self._voice()) is not None:
-            body["voice_connected"] = voice
+        body.update(self._details())
         return status, body
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

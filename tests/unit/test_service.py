@@ -41,6 +41,10 @@ def radio(
     )
 
 
+# /healthz's details for an idle radio on the console (paddock#62 R9).
+IDLE = {"idle": True, "src": "live", "sink": "console"}
+
+
 def msgs(log: io.StringIO) -> list[object]:
     return [line["msg"] for line in lines(log)]
 
@@ -52,7 +56,13 @@ async def test_connects_logs_ready_and_stops_cleanly(fake_nats: FakeNATS, log: i
     await until(lambda: "ready" in msgs(log))
     assert (await get(r.health.port)) == (
         200,
-        {"status": "ok", "version": "1.2.3", "connected": True},
+        {
+            "status": "ok",
+            "version": "1.2.3",
+            "connected": True,
+            "ok": True,
+            **IDLE,
+        },
     )
     stop.set()
     await asyncio.wait_for(task, 10)
@@ -78,7 +88,7 @@ async def test_retries_until_nats_is_up(log: io.StringIO, monkeypatch: pytest.Mo
     assert "ready" not in msgs(log)
     assert (await get(r.health.port)) == (
         503,
-        {"status": "unavailable", "version": "1.2.3", "connected": False},
+        {"status": "unavailable", "version": "1.2.3", "connected": False, "ok": False, **IDLE},
     )
     late = FakeNATS(gone.port)
     await late.start()
@@ -86,7 +96,7 @@ async def test_retries_until_nats_is_up(log: io.StringIO, monkeypatch: pytest.Mo
         await until(lambda: "ready" in msgs(log))
         assert (await get(r.health.port)) == (
             200,
-            {"status": "ok", "version": "1.2.3", "connected": True},
+            {"status": "ok", "version": "1.2.3", "connected": True, "ok": True, **IDLE},
         )
         stop.set()
         await asyncio.wait_for(task, 10)
@@ -130,7 +140,7 @@ async def test_reconnects_after_nats_restarts(
         await until(lambda: "nats reconnected" in msgs(log))
         assert (await get(r.health.port)) == (
             200,
-            {"status": "ok", "version": "1.2.3", "connected": True},
+            {"status": "ok", "version": "1.2.3", "connected": True, "ok": True, **IDLE},
         )
 
         # A drain that fails at shutdown is logged, and the connection closed anyway.

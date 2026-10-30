@@ -169,6 +169,8 @@ class Callouts[C]:
         self.dropped: Counter[str] = Counter()
         self.phrased = 0
         self.said = 0
+        # When the last callout finished playing, on the wall clock (radio.status).
+        self.last_spoken_at: datetime | None = None
         # Each session's engineer and phrasebook, by session id, oldest first.
         self._sessions: OrderedDict[str, tuple[Engineer, Phrases]] = OrderedDict()
         # The callouts taken and not yet settled, by stream sequence.
@@ -189,6 +191,11 @@ class Callouts[C]:
                 tg.create_task(self._speak() if self.timing == LIVE else self._simulate())
         finally:
             await self._unsubscribe()
+
+    @property
+    def idle(self) -> bool:
+        """Nothing taken is waiting, held in the pit lane, or playing."""
+        return not self._held
 
     async def _unsubscribe(self) -> None:
         """Let go of the subscriptions, so draining the connection at shutdown
@@ -441,7 +448,14 @@ class Callouts[C]:
                     held = self.sink.seconds(clip) if self.timing == SIMULATED else 0.0
                     finished = later(at, held)
                 self.said += 1
-                self.timeline.write(p, SPOKEN, None, started, finished or self.clock())
+                ended = finished or self.clock()
+                self.last_spoken_at = self.clock()
+                # When the audio really finished (paddock#62, R8).
+                self.logger.info(
+                    f"played ({p.callout.rule}) in {(ended - started).total_seconds():.1f} s",
+                    extra={"id": p.callout.id, "rule": p.callout.rule},
+                )
+                self.timeline.write(p, SPOKEN, None, started, ended)
             finally:
                 self.sink.release(clip)
         except NotConnected:

@@ -1,7 +1,8 @@
 """radio's service: serve GET /healthz, connect to NATS, log "ready", take and speak
 the source's callouts (radio.callouts) through the sink the settings name until it
 is told to stop, then drain the connection and close the server. With the discord
-sink, the source's events open voice (radio.discord_sink).
+sink, the source's events open voice (radio.discord_sink). Once connected, radio
+keeps its status in the `live` bucket (radio.status).
 
 NATS may not be up when radio starts, as in a pod whose server starts beside it, so
 the first connection is retried until it succeeds or radio stops, with a `nats
@@ -17,7 +18,8 @@ import contextlib
 import logging
 import sys
 from collections.abc import Callable
-from typing import IO
+from datetime import datetime
+from typing import IO, Any
 
 from nats.aio.client import Client
 from nats.aio.msg import Msg
@@ -31,6 +33,7 @@ from radio.health import HealthServer
 from radio.piper_voice import Voices
 from radio.settings import Settings
 from radio.sink import ConsoleSink, WavSink
+from radio.status import Status, Writer
 from radio.timing import SIMULATED, Timeline
 from radio.voice import VoiceError
 
@@ -71,17 +74,48 @@ class Radio:
         # Whether the first connection was made: before it, a failed attempt is an
         # error, not a disconnect.
         self.was_connected = False
+        # What speaks the callouts, once radio does.
+        self.callouts: Callouts[Any] | None = None
+        # radio's own tasks: /healthz is not ok once one has stopped.
+        self.tasks: list[asyncio.Future[None]] = []
+        self.status = Status(
+            settings.src,
+            settings.sink,
+            self.voice_connected,
+            self.voice_listeners,
+            self.last_spoken_at,
+        )
         self.health = HealthServer(
             settings.health_host,
             settings.health_port,
             version,
             self.connected,
             logger,
-            self.voice_connected,
+            self.ok,
+            self.details,
         )
 
     def connected(self) -> bool:
         return self.nc is not None and self.nc.is_connected
+
+    def ok(self) -> bool:
+        """None of radio's tasks has stopped (connected to NATS is /healthz's)."""
+        return not any(t.done() for t in self.tasks)
+
+    def idle(self) -> bool:
+        """Nothing queued or playing."""
+        return self.callouts is None or self.callouts.idle
+
+    def details(self) -> dict[str, object]:
+        """/healthz's part beyond NATS: idle, and radio's status."""
+        return {"idle": self.idle(), **self.status.body()}
+
+    def last_spoken_at(self) -> datetime | None:
+        return None if self.callouts is None else self.callouts.last_spoken_at
+
+    def voice_listeners(self) -> int | None:
+        """Who is listening in the voice channel: not known yet (paddock#61)."""
+        return None
 
     def voice_connected(self) -> bool | None:
         """Whether Discord voice is up; None without the discord sink."""
@@ -181,10 +215,12 @@ class Radio:
             timeline.close()
             await sink.close()
             raise
-        callouts = Callouts(
+        callouts: Callouts[Any] = Callouts(
             self.nc, s.src, engineers, sink, self.logger, timing=s.timing, timeline=timeline
         )
+        self.callouts = callouts
         speaking = asyncio.ensure_future(callouts.run())
+        self.tasks.append(speaking)
         stopping = asyncio.ensure_future(stop.wait())
         try:
             await asyncio.wait({speaking, stopping}, return_when=asyncio.FIRST_COMPLETED)
@@ -217,10 +253,17 @@ class Radio:
         await self.health.start()
         try:
             if await self.connect(stop):
+                assert self.nc is not None
                 self.logger.info("ready", extra={"nats": redacted(self.settings.nats_url)})
+                writing = asyncio.ensure_future(Writer(self.status, self.logger).run(self.nc))
+                self.tasks.append(writing)
                 await self.speak(stop)
         finally:
             self.logger.info("shutting down")
+            for t in self.tasks:
+                t.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await t
             if self.nc is not None and not self.was_connected:
                 await self.nc.close()
             elif self.nc is not None and not self.nc.is_closed:
