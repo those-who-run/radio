@@ -14,7 +14,7 @@ dependencies = [
   "piper-tts==1.8.0", # the voice, as v1 (paddock#57); onnxruntime under it holds radio on 3.14
   "pyyaml==6.0.3", # the voice: settings file, v1's rules file format (paddock#57)
   # The callout and its CloudEvents headers, from contracts' release tag (paddock#265).
-  "twr-contracts @ git+https://github.com/those-who-run/contracts@v0.2.3#subdirectory=gen/python",
+  "twr-contracts @ git+https://github.com/those-who-run/contracts@v0.2.4#subdirectory=gen/python",
 ]
 
 [project.scripts]
