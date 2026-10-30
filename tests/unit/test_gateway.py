@@ -224,3 +224,16 @@ async def test_voice_states_in_the_channel_reach_the_sink(log: io.StringIO) -> N
     ]
     assert seat(state(ch, deaf=True), 7) == Seat(HERE, deaf=True)
     assert seat(state(other), 7).where == ELSEWHERE
+
+
+def test_the_live_count_reads_the_channel_now() -> None:
+    # The count when radio speaks or reports, from the cache rather than the last
+    # event; None until the channel is known.
+    ch = ListenedChannel(7, {1: state(), 9: state(self_deaf=True)}, [Member(1, "a")])
+    client = StubClient(ch)
+    client.user = SimpleNamespace(id=9)  # type: ignore[attr-defined]
+    g = gateway(client)
+    assert g.listeners(7) == 1
+    del ch._states[1]
+    assert g.listeners(7) == 0
+    assert gateway(StubClient(None)).listeners(7) is None

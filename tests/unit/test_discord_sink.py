@@ -116,9 +116,14 @@ class FakeGateway:
         self.closed = 0
         self.sources: list[FakeSource] = []
         self.watching: list[tuple[int, Callable[[str | None, Seat, Seat, int], None]]] = []
+        # The channel's count as the gateway's cache has it now; None: unknown.
+        self.live: int | None = None
 
     async def start(self) -> None:
         self.started += 1
+
+    def listeners(self, channel_id: int) -> int | None:
+        return self.live
 
     def watch(
         self, channel_id: int, changed: Callable[[str | None, Seat, Seat, int], None]
@@ -746,3 +751,34 @@ async def test_the_status_has_the_listeners(
     finally:
         stop.set()
         await asyncio.wait_for(task, 10)
+
+
+async def test_the_count_comes_from_the_channel_when_speaking(
+    tmp_path: Path, log: io.StringIO
+) -> None:
+    # A listener who left while the gateway was down sent no event; the count at
+    # speaking time still sees the empty channel, and warns.
+    vc = FakeVoiceClient()
+    s, g = await playing(tmp_path, vc)
+    await s.start()
+    g.state("Ciarán", Seat(NOWHERE), Seat(HERE), 1)
+    g.live = 0
+    await s.play(clip(tmp_path), pending())
+    assert s.listeners == 0 and s.current_listeners() == 0
+    msgs = [str(x["msg"]) for x in lines(log)]
+    assert any(m.startswith("speaking (fuel) to 0 listeners") for m in msgs)
+    assert "voice: talking to an empty channel" in msgs
+    await s.close()
+
+
+async def test_a_callout_that_never_played_does_not_warn(tmp_path: Path, log: io.StringIO) -> None:
+    vc = FakeVoiceClient(mode="raise")
+    s, g = await playing(tmp_path, vc)
+    s.listeners = 0
+    with pytest.raises(RuntimeError):
+        await s.play(clip(tmp_path), pending())
+    assert "voice: talking to an empty channel" not in [x["msg"] for x in lines(log)]
+    # The session wasn't marked: the next callout that plays warns.
+    vc.mode = "finish"
+    await s.play(clip(tmp_path), pending())
+    assert "voice: talking to an empty channel" in [x["msg"] for x in lines(log)]

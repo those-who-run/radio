@@ -151,6 +151,13 @@ class DiscordGateway:
 
         client.event(on_voice_state_update)
 
+    def listeners(self, channel_id: int) -> int | None:
+        client = self.client
+        ch = client.get_channel(channel_id)
+        if not isinstance(ch, discord.VoiceChannel):
+            return None
+        return count(ch, client.user.id if client.user is not None else None)
+
     def source(self, path: Path) -> AudioSource:
         # ffmpeg resamples Piper's WAV to Discord's 48 kHz stereo, as in v1.
         return discord.FFmpegPCMAudio(str(path))
