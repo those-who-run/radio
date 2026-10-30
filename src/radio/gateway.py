@@ -4,7 +4,8 @@
 
 Only voice is sent: the intents are `guilds` and `voice_states`, no message content
 and nothing privileged (v1's DiscordPlayer). The token is handed to discord.py
-and nowhere else.
+and nowhere else. The voice states say who is in radio's channel (paddock#61),
+which radio sees by display name only.
 """
 
 from __future__ import annotations
@@ -12,12 +13,21 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
 import discord
 
-from radio.discord_sink import AudioSource, VoiceChannel, VoiceClient
+from radio.discord_sink import (
+    ELSEWHERE,
+    HERE,
+    NOWHERE,
+    AudioSource,
+    Seat,
+    VoiceChannel,
+    VoiceClient,
+)
 from radio.settings import Secret, Settings
 
 
@@ -27,6 +37,28 @@ def intents() -> discord.Intents:
     i.guilds = True
     i.voice_states = True
     return i
+
+
+def seat(state: discord.VoiceState, channel_id: int) -> Seat:
+    """A discord.py voice state as radio.discord_sink's Seat."""
+    ch = state.channel
+    where = NOWHERE if ch is None else HERE if ch.id == channel_id else ELSEWHERE
+    return Seat(where, state.self_mute, state.mute, state.self_deaf, state.deaf)
+
+
+def count(channel: discord.VoiceChannel, me: int | None) -> int:
+    """The members in channel who can hear: not bots, radio's own included, and not
+    deafened by themselves or the server. From the channel's voice states, so a
+    member the cache doesn't hold still counts unless a bot."""
+    n = 0
+    for user_id, state in channel.voice_states.items():
+        if user_id == me or state.self_deaf or state.deaf:
+            continue
+        member = channel.guild.get_member(user_id)
+        if member is not None and member.bot:
+            continue
+        n += 1
+    return n
 
 
 class Channel:
@@ -99,6 +131,25 @@ class DiscordGateway:
         if not isinstance(ch, discord.VoiceChannel):
             raise RuntimeError(f"channel {channel_id} is not a voice channel")
         return Channel(ch)
+
+    def watch(
+        self, channel_id: int, changed: Callable[[str | None, Seat, Seat, int], None]
+    ) -> None:
+        client = self.client
+
+        async def on_voice_state_update(
+            member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
+        ) -> None:
+            me = client.user.id if client.user is not None else None
+            b, a = seat(before, channel_id), seat(after, channel_id)
+            if HERE not in (b.where, a.where):
+                return
+            ch = client.get_channel(channel_id)
+            n = count(ch, me) if isinstance(ch, discord.VoiceChannel) else 0
+            # radio's own join or leave says only the count.
+            changed(None if member.id == me else member.display_name, b, a, n)
+
+        client.event(on_voice_state_update)
 
     def source(self, path: Path) -> AudioSource:
         # ffmpeg resamples Piper's WAV to Discord's 48 kHz stereo, as in v1.

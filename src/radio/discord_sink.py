@@ -23,6 +23,15 @@ Playing. A clip plays for at most its length plus PLAY_MARGIN, or PLAY_UNKNOWN w
 its length isn't known, then is stopped and logged; an audio source that fails to
 start is cleaned up, so it never leaks.
 
+Listening (paddock#61). Each change of a member's voice state in radio's channel,
+someone joining, leaving, moving, muting or deafening (by themselves or the
+server), is one INFO line with their display name and nothing else of theirs, and
+sets the listener count: the members in the channel who are not bots and not
+deafened. The count is None until the first voice state, and goes with every
+"speaking" line and into radio's status. The first callout played to 0
+listeners in a session is one WARNING, so a race talked to an empty channel, as
+v1's on 2026-10-19 after a long pause, shows in the log.
+
 The Discord library stays behind `Gateway` (radio.gateway), so this is tested with
 fakes.
 """
@@ -34,6 +43,7 @@ import contextlib
 import logging
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Protocol
 
@@ -52,6 +62,48 @@ PLAY_UNKNOWN = 30.0
 IDLE_CHECK = 10.0
 # The events that close a session: anything else of a session opens it.
 CLOSING = ("session.ended", "session.discarded")
+# How many sessions radio remembers it warned of an empty channel in.
+WARNED = 64
+# Where a member is, as far as radio's voice channel goes.
+HERE = "here"
+ELSEWHERE = "elsewhere"
+NOWHERE = "nowhere"
+
+
+@dataclass(frozen=True)
+class Seat:
+    """A member's voice state, as far as radio's channel goes: where they are, and
+    whether they are muted or deafened, by themselves or by the server."""
+
+    where: str = NOWHERE
+    self_mute: bool = False
+    mute: bool = False
+    self_deaf: bool = False
+    deaf: bool = False
+
+
+def changes(before: Seat, after: Seat) -> list[tuple[str, str | None]]:
+    """What changed in radio's channel, each as (change, by): `joined`, `left`,
+    `moved in`, `moved out`, or, while in the channel, `muted`, `unmuted`,
+    `deafened` and `undeafened`, by `self` or `server`."""
+    if before.where != HERE and after.where == HERE:
+        return [("joined" if before.where == NOWHERE else "moved in", None)]
+    if before.where == HERE and after.where != HERE:
+        return [("left" if after.where == NOWHERE else "moved out", None)]
+    if before.where != HERE:
+        return []
+    out: list[tuple[str, str | None]] = []
+    for name, on, off in (("mute", "muted", "unmuted"), ("deaf", "deafened", "undeafened")):
+        for by, attr in (("self", f"self_{name}"), ("server", name)):
+            was, now = getattr(before, attr), getattr(after, attr)
+            if was != now:
+                out.append((on if now else off, by))
+    return out
+
+
+def listeners(count: int | None) -> str:
+    """`1 listener`, `0 listeners`."""
+    return f"{count} listener" if count == 1 else f"{count} listeners"
 
 
 class AudioSource(Protocol):
@@ -94,6 +146,14 @@ class Gateway(Protocol):
 
     def source(self, path: Path) -> AudioSource: ...
 
+    def watch(
+        self, channel_id: int, changed: Callable[[str | None, Seat, Seat, int], None]
+    ) -> None:
+        """Call changed(display name, before, after, listeners) on each voice state
+        update that touches the channel, with the channel's listener count after
+        it; the name is None for the bot's own."""
+        ...
+
 
 class DiscordSink(ConsoleSink):
     """Each callout synthesised in its engineer's voice and played in the voice
@@ -128,12 +188,18 @@ class DiscordSink(ConsoleSink):
         self._watching: asyncio.Task[None] | None = None
         # Once closed, nothing joins again: a late event at shutdown is ignored.
         self._closed = False
+        # Who can hear radio in its channel (paddock#61): None until the first
+        # voice state.
+        self.listeners: int | None = None
+        # The sessions warned of an empty channel, oldest first.
+        self._warned: dict[str, None] = {}
 
     # Lifecycle.
 
     async def start(self) -> None:
         """Log in, and check for idleness until closed."""
         await self.gateway.start()
+        self.gateway.watch(self.channel_id, self.voice_state)
         self._watching = asyncio.create_task(self._watch(), name="voice-idle")
 
     async def close(self) -> None:
@@ -290,6 +356,35 @@ class DiscordSink(ConsoleSink):
             self.logger.warning("voice: leaving", extra={"err": str(err) or type(err).__name__})
         self.logger.info("voice: left")
 
+    # Listening.
+
+    def voice_state(self, name: str | None, before: Seat, after: Seat, count: int) -> None:
+        """A member's voice state changed: a line for each change in the channel,
+        and the listener count. radio's own (name None) only counts."""
+        self.listeners = count
+        if name is None:
+            return
+        for change, by in changes(before, after):
+            extra: dict[str, object] = {"member": name, "change": change, "listeners": count}
+            if by is not None:
+                extra["by"] = by
+            self.logger.info(f"voice: {name} {change}", extra=extra)
+
+    def _heard(self, callout: Pending) -> None:
+        """The first callout played to no one in a session warns, once."""
+        if self.listeners != 0:
+            return
+        sid = callout.callout.session_id
+        if sid in self._warned:
+            return
+        self._warned[sid] = None
+        while len(self._warned) > WARNED:
+            del self._warned[next(iter(self._warned))]
+        self.logger.warning(
+            "voice: talking to an empty channel",
+            extra={"session_id": sid, "rule": callout.callout.rule, "id": callout.callout.id},
+        )
+
     # The sink's steps.
 
     async def connect(self) -> bool:
@@ -317,9 +412,13 @@ class DiscordSink(ConsoleSink):
         bound = clip.seconds + PLAY_MARGIN if clip.seconds > 0 else PLAY_UNKNOWN
         source = self.gateway.source(clip.utterance.path)
         try:
+            c = callout.callout
+            to = "" if self.listeners is None else f" to {listeners(self.listeners)}"
             self.logger.info(
-                "speaking", extra={"rule": callout.callout.rule, "id": callout.callout.id}
+                f"speaking ({c.rule}){to}: {callout.text}",
+                extra={"rule": c.rule, "id": c.id, "listeners": self.listeners},
             )
+            self._heard(callout)
             vc.play(source, after=after)
         except BaseException:
             # play never started: nothing else will clean the source up.

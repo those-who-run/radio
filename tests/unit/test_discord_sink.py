@@ -25,7 +25,7 @@ from twr_contracts import ce
 
 from radio import discord_sink, logs, service
 from radio.__main__ import main
-from radio.discord_sink import STALE_ATTEMPTS, DiscordSink
+from radio.discord_sink import ELSEWHERE, HERE, NOWHERE, STALE_ATTEMPTS, DiscordSink, Seat, changes
 from radio.piper_voice import Voices
 from radio.queue import Pending
 from radio.service import Radio
@@ -115,9 +115,20 @@ class FakeGateway:
         self.started = 0
         self.closed = 0
         self.sources: list[FakeSource] = []
+        self.watching: list[tuple[int, Callable[[str | None, Seat, Seat, int], None]]] = []
 
     async def start(self) -> None:
         self.started += 1
+
+    def watch(
+        self, channel_id: int, changed: Callable[[str | None, Seat, Seat, int], None]
+    ) -> None:
+        self.watching.append((channel_id, changed))
+
+    def state(self, name: str | None, before: Seat, after: Seat, count: int) -> None:
+        """A voice state update, as the gateway hands it on."""
+        for _, changed in self.watching:
+            changed(name, before, after, count)
 
     async def close(self) -> None:
         self.closed += 1
@@ -599,3 +610,139 @@ async def test_the_live_bucket_says_voice_dropped_within_a_second(
         stop.set()
         await asyncio.wait_for(task, 10)
         await js.delete_key_value("live")
+
+
+# paddock#61: who is listening.
+
+
+def test_the_changes_of_a_voice_state() -> None:
+    here, away = Seat(HERE), Seat(ELSEWHERE)
+    assert changes(Seat(NOWHERE), here) == [("joined", None)]
+    assert changes(here, Seat(NOWHERE)) == [("left", None)]
+    assert changes(away, here) == [("moved in", None)]
+    assert changes(here, away) == [("moved out", None)]
+    assert changes(here, Seat(HERE, self_mute=True)) == [("muted", "self")]
+    assert changes(Seat(HERE, mute=True), here) == [("unmuted", "server")]
+    assert changes(here, Seat(HERE, self_deaf=True, deaf=True)) == [
+        ("deafened", "self"),
+        ("deafened", "server"),
+    ]
+    assert changes(Seat(HERE, self_deaf=True), here) == [("undeafened", "self")]
+    # Nothing that radio's channel sees.
+    assert changes(away, Seat(ELSEWHERE, self_mute=True)) == []
+    assert changes(here, here) == []
+
+
+async def test_a_line_for_each_change_and_the_count(tmp_path: Path, log: io.StringIO) -> None:
+    # AC1, R1, R2: joining, muting, deafening and leaving give one line each, and
+    # the count goes 1, 1, 0, 0; None before the first voice state.
+    g = FakeGateway()
+    s = sink(tmp_path, g)
+    await s.start()
+    assert [c for c, _ in g.watching] == [1]
+    assert s.listeners is None
+    seen: list[int | None] = []
+    steps = [
+        (Seat(NOWHERE), Seat(HERE), 1),
+        (Seat(HERE), Seat(HERE, self_mute=True), 1),
+        (Seat(HERE, self_mute=True), Seat(HERE, self_mute=True, self_deaf=True), 0),
+        (Seat(HERE, self_mute=True, self_deaf=True), Seat(NOWHERE), 0),
+    ]
+    for before, after, n in steps:
+        g.state("Ciarán", before, after, n)
+        seen.append(s.listeners)
+    await s.close()
+    assert seen == [1, 1, 0, 0]
+    voice = [x for x in lines(log) if x.get("member") == "Ciarán"]
+    assert [(x["msg"], x.get("by"), x["listeners"]) for x in voice] == [
+        ("voice: Ciarán joined", None, 1),
+        ("voice: Ciarán muted", "self", 1),
+        ("voice: Ciarán deafened", "self", 0),
+        ("voice: Ciarán left", None, 0),
+    ]
+
+
+async def test_radios_own_voice_state_only_counts(tmp_path: Path, log: io.StringIO) -> None:
+    # radio's join tells it who is already there, with no line of its own.
+    g = FakeGateway()
+    s = sink(tmp_path, g)
+    await s.start()
+    g.state(None, Seat(NOWHERE), Seat(HERE, self_deaf=True), 1)
+    await s.close()
+    assert s.listeners == 1
+    assert not [x for x in lines(log) if "member" in x]
+
+
+async def test_each_speaking_line_says_how_many_listen(tmp_path: Path, log: io.StringIO) -> None:
+    # AC2, R3: `speaking (rule) to 1 listener: …`, `… to 0 listeners: …`.
+    vc = FakeVoiceClient()
+    s, g = await playing(tmp_path, vc)
+    p = pending()
+    p.text = "Pit this lap."
+    await s.play(clip(tmp_path), p)
+    s.listeners = 1
+    await s.play(clip(tmp_path), p)
+    s.listeners = 0
+    await s.play(clip(tmp_path), p)
+    speaking = [x for x in lines(log) if str(x["msg"]).startswith("speaking")]
+    assert [(x["msg"], x["listeners"]) for x in speaking] == [
+        ("speaking (fuel): Pit this lap.", None),
+        ("speaking (fuel) to 1 listener: Pit this lap.", 1),
+        ("speaking (fuel) to 0 listeners: Pit this lap.", 0),
+    ]
+
+
+async def test_an_empty_channel_warns_once_a_session(tmp_path: Path, log: io.StringIO) -> None:
+    # AC2, AC5, R5: the 2026-10-19 case. The driver hears the race until a long
+    # pause, leaves during it, and the race resumes: the first callout after the
+    # pause warns, once; a new session warns again, once.
+    vc = FakeVoiceClient()
+    s, g = await playing(tmp_path, vc)
+    await s.start()
+
+    def said(session: str) -> Pending:
+        p = Pending(made("lap_time", "template", 20, session=session), "p2", 1, pending().delivery)  # type: ignore[arg-type]
+        p.text = "Lap time."
+        return p
+
+    g.state("Ciarán", Seat(NOWHERE), Seat(HERE), 1)
+    await s.play(clip(tmp_path), said("S1"))
+    # Ten minutes paused: the only listener leaves.
+    g.state("Ciarán", Seat(HERE), Seat(NOWHERE), 0)
+    for _ in range(3):
+        await s.play(clip(tmp_path), said("S1"))
+    # Back, and gone again in the same session: warned already.
+    g.state("Ciarán", Seat(NOWHERE), Seat(HERE), 1)
+    g.state("Ciarán", Seat(HERE), Seat(NOWHERE), 0)
+    await s.play(clip(tmp_path), said("S1"))
+    await s.play(clip(tmp_path), said("S2"))
+    await s.play(clip(tmp_path), said("S2"))
+    await s.close()
+    warned = [x for x in lines(log) if x["level"] == "WARN" and "empty" in str(x["msg"])]
+    assert [(x["msg"], x["session_id"]) for x in warned] == [
+        ("voice: talking to an empty channel", "S1"),
+        ("voice: talking to an empty channel", "S2"),
+    ]
+
+
+async def test_the_status_has_the_listeners(
+    nats_server: NATSServer, log: io.StringIO, tmp_path: Path
+) -> None:
+    # AC3, R2: radio's status, in /healthz and the live bucket's value, has
+    # voice_listeners: null before the first voice state, then the count.
+    g = FakeGateway()
+    r = discord_radio(nats_server.url, tmp_path, g, "listeners")
+    stop = asyncio.Event()
+    task = asyncio.create_task(r.run(stop))
+    try:
+        await until(lambda: "callouts: taking" in msgs(log))
+        assert (await get(r.health.port))[1]["voice_listeners"] is None
+        assert not r.status.value().HasField("voice_listeners")
+        g.state("Ciarán", Seat(NOWHERE), Seat(HERE), 1)
+        assert (await get(r.health.port))[1]["voice_listeners"] == 1
+        g.state("Ciarán", Seat(HERE), Seat(HERE, deaf=True), 0)
+        v = r.status.value()
+        assert v.HasField("voice_listeners") and v.voice_listeners == 0
+    finally:
+        stop.set()
+        await asyncio.wait_for(task, 10)
