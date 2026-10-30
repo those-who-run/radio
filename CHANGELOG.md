@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/those-who-run/radio/compare/v0.1.1...v0.1.2) (2026-10-30)
+
+
+### Features
+
+* **radio:** take back what was queued at a pit entry, by its pit_lane ([#23](https://github.com/those-who-run/radio/issues/23)) ([e54e7c9](https://github.com/those-who-run/radio/commit/e54e7c9636673adffcea35739e2fd9bfd21ab6e6))
+
 ## [0.1.1](https://github.com/those-who-run/radio/compare/v0.1.0...v0.1.1) (2026-10-29)
 
 
