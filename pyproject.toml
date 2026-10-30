@@ -1,7 +1,7 @@
 [project]
 name = "radio"
 # release-please moves the version once radio releases.
-version = "0.1.2"
+version = "0.1.3"
 description = "The voice engineer of Those Who Run v2: callouts from NATS spoken in Discord"
 readme = "README.md"
 license = "GPL-3.0-only"
