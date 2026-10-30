@@ -114,9 +114,11 @@ class Pending:
 
 
 class Gate(Protocol):
-    """Sees each callout the queue comes to, at now: None lets it through."""
+    """Sees each callout the queue comes to, at now: None lets it through. expire
+    says the queue drops stale callouts, so the gate never holds one past its
+    expires_at, which would keep it unacked as long as the hold lasts."""
 
-    def check(self, p: Pending, now: datetime) -> str | None: ...
+    def check(self, p: Pending, now: datetime, expire: bool = True) -> str | None: ...
 
 
 class CalloutQueue:
@@ -162,7 +164,9 @@ class CalloutQueue:
             p = item[-1]
             if replay and p.created_at > now:
                 waiting.append(item)
-            elif self._gate is not None and (verdict := self._gate.check(p, now)) is not None:
+            elif (
+                self._gate is not None and (verdict := self._gate.check(p, now, expire)) is not None
+            ):
                 if verdict == PIT_DROP:
                     dropped.append((p, PIT_LANE))
                 elif verdict == MOVED:

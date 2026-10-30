@@ -27,7 +27,7 @@ from twr_contracts import ce
 
 from radio.callouts import Callouts
 from radio.pitlane import FROM_STATE
-from radio.queue import PIT_LANE
+from radio.queue import PIT_LANE, QUEUED
 
 # In the PitLane tests, ecu's pit state is read at READ, before the stop's exit.
 READ = t(10)
@@ -102,6 +102,45 @@ def test_a_key_from_another_session_changes_nothing_for_this_one() -> None:
         "position",
         "lap_time",
     ]
+
+
+def test_an_expired_callout_is_dropped_as_expired_whatever_the_lane() -> None:
+    # A lane whose end never comes (a key a crashed ecu left, its session's end
+    # missed): a callout past its expires_at is dropped as expired, not held, so
+    # it is acked and radio can go idle. One still fresh is held as before.
+    pits, q = queue()
+    assert pits.from_state("crashed", 0, READ, pits.events)
+    q.push(pending("lap_time", 20, HOLD, created=1, session="crashed"))  # Expires at 9.
+    q.push(pending("position", 12, DROP, created=1, session="crashed"))
+    q.push(pending("final_lap", 11, HOLD, created=5, session="crashed"))  # Expires at 13.
+    found, dropped = q.pop(t(11))
+    assert found is None
+    assert sorted((p.callout.rule, stage) for p, stage in dropped) == [
+        ("lap_time", QUEUED),
+        ("position", QUEUED),
+    ]
+    assert [p.callout.rule for p in pits._sessions["crashed"].lanes[FROM_STATE].held] == [
+        "final_lap"
+    ]
+    assert len(q) == 0
+
+
+async def test_an_expired_callout_in_a_lane_that_never_ends_lets_radio_go_idle(
+    log: io.StringIO,
+) -> None:
+    # Live, through Callouts: the speaker drops it as expired and acks it.
+    c = callouts(FakeKV(live_pb2.PitState(session_id="crashed", in_pit_lane=True)), now=t(11))
+    await c.read_pit("at start")
+    p = pending("lap_time", 20, HOLD, created=1, session="crashed")
+    c._held[p.seq] = p
+    c.queue.push(p)
+    assert not c.idle
+    speaking = asyncio.ensure_future(c._speak())
+    await until(lambda: c.idle)
+    speaking.cancel()
+    assert c.dropped == {QUEUED: 1}
+    [line] = [x for x in lines(log) if x["msg"] == "callout dropped"]
+    assert line["stage"] == QUEUED
 
 
 # Through Callouts, against a fake bucket.

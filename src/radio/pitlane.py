@@ -183,7 +183,13 @@ class PitLane:
         """ecu's pit state says the car is in the lane of session_id, after stops
         stops, read at t: the lane opens at t, as if entered then, unless the events
         say otherwise (the module's doc). events is self.events before the read.
-        Says whether the lane was opened."""
+        Says whether the lane was opened.
+
+        A rare case left as it is: once the race finishes in the lane, ecu
+        publishes the `hold` callouts raised after the flag at once. A radio that
+        starts or reconnects then, having missed the RaceFinished, doesn't know the
+        flag fell (PitState doesn't carry it), so it holds them, and the session's
+        end drops them where ecu and v1 said them."""
         s = self._session(session_id)
         if (
             events != self.events
@@ -205,10 +211,17 @@ class PitLane:
 
     # The queue's gate.
 
-    def check(self, p: Pending, now: datetime) -> str | None:
+    def check(self, p: Pending, now: datetime, expire: bool = True) -> str | None:
         """What the lane does to p, which the speaker has come to at now: None when
         nothing, PIT_DROP to drop it, HELD when the lane has taken it until its
-        end, MOVED when it is now as raised at the end of a lane already over."""
+        end, MOVED when it is now as raised at the end of a lane already over.
+
+        A stale callout (expire, and past its expires_at as of now, after any move
+        by a lane already over) is neither held nor dropped here: None lets the
+        queue drop it as expired, at the stage `queued`. A lane whose end never comes, such
+        as one read from a key a crashed ecu left for a session whose end radio
+        missed, would otherwise keep it unacked, and radio not idle, until radio
+        stops."""
         policy = p.callout.pit_lane
         if policy == SPEAK:
             return None
@@ -219,6 +232,9 @@ class PitLane:
         for lane in sorted(s.lanes.values(), key=lambda lane: lane.entered):
             if not p.created_at < lane.entered <= now:
                 continue
+            if expire and p.stale(now):
+                # Expired whatever the lane says: the queue drops it as such.
+                return None
             if policy == DROP or lane.cleared:
                 self.logger.info("callout dropped in the pit lane", extra=_about(p))
                 return PIT_DROP
