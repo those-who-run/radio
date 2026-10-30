@@ -102,7 +102,7 @@ def test_stale_callouts_are_dropped() -> None:
     q.push(pending("new", 20, created=9, expires=8))
     found, stale = q.pop(T0 + timedelta(seconds=10))
     assert found is not None and found.callout.rule == "new"
-    assert [p.callout.rule for p in stale] == ["old"]
+    assert [(p.callout.rule, stage) for p, stage in stale] == [("old", QUEUED)]
 
 
 def test_at_expires_at_exactly_it_is_still_said() -> None:
@@ -131,7 +131,9 @@ def test_a_held_callout_can_go_stale() -> None:
     q = CalloutQueue(Dropped())
     q.push(pending("position", 12, hold=5.0, expires=2.0))
     found, stale = q.pop(T0 + timedelta(seconds=3))
-    assert found is None and [p.callout.rule for p in stale] == ["position"]
+    assert found is None and [(p.callout.rule, stage) for p, stage in stale] == [
+        ("position", QUEUED)
+    ]
 
 
 async def test_get_drops_the_stale_and_wakes_on_a_push() -> None:

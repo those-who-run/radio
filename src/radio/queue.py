@@ -9,6 +9,10 @@ the numeric priority, then the age, then the order the stream holds them in.
 The times are compared with `clock()`, UTC now live (paddock#56 R8). A replay on
 its own clock (radio.timing, paddock#60) pops at the time it has reached, and a
 callout created after that time isn't there yet.
+
+A gate (radio.pitlane, paddock#59) sees each callout the queue comes to before
+anything else does, and can take it out: to drop, or to hold outside the queue
+until it is pushed again; or move its times, and the queue puts it back.
 """
 
 from __future__ import annotations
@@ -34,6 +38,13 @@ Clock = Callable[[], datetime]
 QUEUED = "queued"
 CONNECTING = "connecting"
 SYNTHESIS = "synthesis"
+# Taken out at a pit entry, by its pit_lane (radio.pitlane).
+PIT_LANE = "pit lane"
+
+# What a gate does with a callout: drops it, holds it itself, or moved its times.
+PIT_DROP = "drop"
+HELD = "held"
+MOVED = "moved"
 
 
 def utc_now() -> datetime:
@@ -102,6 +113,12 @@ class Pending:
         return max((self.expires_at - now).total_seconds(), 0.0)
 
 
+class Gate(Protocol):
+    """Sees each callout the queue comes to, at now: None lets it through."""
+
+    def check(self, p: Pending, now: datetime) -> str | None: ...
+
+
 class CalloutQueue:
     """The taken callouts, most urgent first. A held one waits in the queue until it
     is due, and more urgent callouts that are due go ahead of it; one past its
@@ -110,8 +127,11 @@ class CalloutQueue:
     The speaker awaits `get` rather than polling `pop`. Push from the event loop's
     thread only: a push wakes the waiting `get`."""
 
-    def __init__(self, drop: Callable[[Pending, str], Awaitable[None]]) -> None:
+    def __init__(
+        self, drop: Callable[[Pending, str], Awaitable[None]], gate: Gate | None = None
+    ) -> None:
         self._drop = drop
+        self._gate = gate
         self._heap: list[tuple[int, int, datetime, int, Pending]] = []
         self._order = itertools.count()
         self._wake = asyncio.Event()
@@ -120,26 +140,37 @@ class CalloutQueue:
         return len(self._heap)
 
     def push(self, p: Pending) -> None:
-        key = (LEVELS.index(p.level), p.callout.priority, p.created_at, next(self._order))
-        heapq.heappush(self._heap, (*key, p))
+        self._push(p, next(self._order))
         self._wake.set()
+
+    def _push(self, p: Pending, order: int) -> None:
+        key = (LEVELS.index(p.level), p.callout.priority, p.created_at, order)
+        heapq.heappush(self._heap, (*key, p))
 
     def pop(
         self, now: datetime, replay: bool = False, expire: bool = True
-    ) -> tuple[Pending | None, list[Pending]]:
-        """The most urgent callout that is due and not stale, and the stale ones it
-        took out on the way. Callouts still held stay queued. On a replay's clock,
-        one created after now stays queued too; expire False keeps the stale ones
-        (instant timing)."""
-        waiting, stale = [], []
+    ) -> tuple[Pending | None, list[tuple[Pending, str]]]:
+        """The most urgent callout that is due and not stale, and the ones it took
+        out on the way to drop, each with its stage: QUEUED for a stale one,
+        PIT_LANE for one the gate drops. Callouts still held stay queued. On a
+        replay's clock, one created after now stays queued too; expire False keeps
+        the stale ones (instant timing)."""
+        waiting, dropped = [], []
         found = None
         while self._heap:
             item = heapq.heappop(self._heap)
             p = item[-1]
             if replay and p.created_at > now:
                 waiting.append(item)
+            elif self._gate is not None and (verdict := self._gate.check(p, now)) is not None:
+                if verdict == PIT_DROP:
+                    dropped.append((p, PIT_LANE))
+                elif verdict == MOVED:
+                    # Back in by its new time, keeping its place in the stream.
+                    self._push(p, item[3])
+                # HELD: the gate keeps it until it is pushed again.
             elif expire and p.stale(now):
-                stale.append(p)
+                dropped.append((p, QUEUED))
             elif not p.due(now):
                 waiting.append(item)
             else:
@@ -147,7 +178,7 @@ class CalloutQueue:
                 break
         for item in waiting:
             heapq.heappush(self._heap, item)
-        return found, stale
+        return found, dropped
 
     def next_at(self) -> datetime | None:
         """The earliest time a queued callout can be said, None for an empty queue."""
@@ -165,9 +196,9 @@ class CalloutQueue:
         while True:
             self._wake.clear()
             now = clock()
-            found, stale = self.pop(now)
-            for p in stale:
-                await self._drop(p, QUEUED)
+            found, dropped = self.pop(now)
+            for p, stage in dropped:
+                await self._drop(p, stage)
             if found is not None:
                 return found
             # Nothing is due: what is left, if anything, is held.

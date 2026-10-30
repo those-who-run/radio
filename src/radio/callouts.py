@@ -43,6 +43,12 @@ phrased, with a phrasebook of the engineer's seeded by the session's id: a repla
 of a session, with the ids ecu gave it, says the same words. The engineer changes
 how a callout is said, never which callouts are said, nor when.
 
+The pit lane (radio.pitlane, paddock#59). ecu applies each callout's pit_lane to
+what it raises in the lane; radio takes back what was still queued at the entry,
+as v1's queue did. It follows the source's pit entries, exits, withdrawn entries,
+flags and session ends with a plain subscription to its events, so a radio
+started or restarted in the lane doesn't know the lane until its next entry.
+
 When (radio.timing). Live, on the wall clock, each callout takes as long as the
 sink takes to play it. A replay's callouts are said on the replay's own clock,
 instantly or by a simulated speaker, and each one's way through radio goes to the
@@ -55,22 +61,25 @@ import asyncio
 import contextlib
 import logging
 from collections import Counter, OrderedDict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
+from google.protobuf.message import Message
 from nats.aio.client import Client
 from nats.aio.msg import Msg
 from nats.aio.subscription import Subscription
 from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 from nats.js.client import JetStreamContext
-from twr.events.v1 import callout_pb2
+from twr.events.v1 import callout_pb2, pit_pb2, race_pb2, session_pb2
 from twr_contracts import callout, ce
 
 from radio.callout import from_message
 from radio.engineer import Engineer, Roster
 from radio.phrases import PhraseError, Phrases, missing
+from radio.pitlane import PitLane
 from radio.queue import (
     CONNECTING,
+    PIT_LANE,
     QUEUED,
     SYNTHESIS,
     CalloutQueue,
@@ -154,7 +163,8 @@ class Callouts[C]:
         self.timeline = timeline or Timeline(None)
         # A replay's clock, for instant and simulated timing.
         self.replay = replay or ReplayClock()
-        self.queue = CalloutQueue(self._expire)
+        self.pits = PitLane(logger)
+        self.queue = CalloutQueue(self._expire, self.pits)
         # Callouts dropped, by stage, phrased and said.
         self.dropped: Counter[str] = Counter()
         self.phrased = 0
@@ -168,6 +178,7 @@ class Callouts[C]:
         self._subs: list[tuple[callout.Level, JetStreamContext.PullSubscription]] = []
         self._published = asyncio.Event()
         self._notify: Subscription | None = None
+        self._events: Subscription | None = None
 
     async def run(self) -> None:
         """Take and speak until cancelled."""
@@ -187,10 +198,12 @@ class Callouts[C]:
         for _, sub in subs:
             with contextlib.suppress(Exception):
                 await sub.unsubscribe()
-        if self._notify is not None:
-            notify, self._notify = self._notify, None
-            with contextlib.suppress(Exception):
-                await notify.unsubscribe()
+        for name in ("_notify", "_events"):
+            sub = getattr(self, name)
+            setattr(self, name, None)
+            if sub is not None:
+                with contextlib.suppress(Exception):
+                    await sub.unsubscribe()
 
     # Taking.
 
@@ -223,12 +236,48 @@ class Callouts[C]:
                 await asyncio.sleep(RETRY_WAIT)
         self._subs = subs
         self._notify = await self.nc.subscribe(f"twr.v1.{self.src}.callout.*", cb=self._on_publish)
+        self._events = await self.nc.subscribe(f"twr.v1.{self.src}.evt.*.*.*", cb=self._on_event)
         self.logger.info(
             "callouts: taking", extra={"src": self.src, "stream": STREAM, "timing": self.timing}
         )
 
     async def _on_publish(self, msg: Msg) -> None:
         self._published.set()
+
+    async def _on_event(self, msg: Msg) -> None:
+        """The events the pit lane follows; the rest are let be."""
+        what = ".".join(msg.subject.split(".")[-2:])
+        if (kind := _PIT_EVENTS.get(what)) is None:
+            return
+        m = kind()
+        try:
+            t = ce.decode(msg.headers or {}, msg.data, m).time
+        except ValueError as err:
+            self.logger.warning(
+                "event unreadable", extra={"subject": msg.subject, "err": _err(err)}
+            )
+            return
+        match m:
+            case pit_pb2.PitEntered():
+                self.pits.entered(m.session_id, m.entry, m.entered_at.ToDatetime(tzinfo=UTC))
+            case pit_pb2.PitExited():
+                self._release(
+                    self.pits.left(m.session_id, m.entry, m.exited_at.ToDatetime(tzinfo=UTC))
+                )
+            case pit_pb2.PitTeleport():
+                self._release(self.pits.left(m.session_id, m.entry, t))
+            case race_pb2.RaceFinished():
+                self._release(self.pits.finished(m.session_id, t))
+            case session_pb2.SessionEnded() | session_pb2.SessionDiscarded():
+                for p in self.pits.ended(m.session_id):
+                    await self._drop(p, PIT_LANE, t)
+
+    def _release(self, released: list[Pending]) -> None:
+        """Queue again what the lane held, as raised at its end."""
+        for p in released:
+            self.queue.push(p)
+        if released:
+            self.replay.poke()
 
     async def _take(self) -> None:
         # Taken and not yet phrased: kept across a fetch that fails part way, so
@@ -359,9 +408,9 @@ class Callouts[C]:
             if not self.replay.past(t):
                 await self.replay.wait(t)
                 continue
-            found, stale = self.queue.pop(t, replay=True, expire=self.timing != INSTANT)
-            for p in stale:
-                await self._drop(p, QUEUED, t)
+            found, dropped = self.queue.pop(t, replay=True, expire=self.timing != INSTANT)
+            for p, stage in dropped:
+                await self._drop(p, stage, t)
             at = t
             if found is not None:
                 at = await self._say(found, t) or t
@@ -446,6 +495,17 @@ class Callouts[C]:
         self._settled[seq] = None
         while len(self._settled) > REMEMBER:
             del self._settled[next(iter(self._settled))]
+
+
+# The events the pit lane follows, by the end of their subject.
+_PIT_EVENTS: dict[str, type[Message]] = {
+    "pit.entered": pit_pb2.PitEntered,
+    "pit.exited": pit_pb2.PitExited,
+    "pit.teleport": pit_pb2.PitTeleport,
+    "race.finished": race_pb2.RaceFinished,
+    "session.ended": session_pb2.SessionEnded,
+    "session.discarded": session_pb2.SessionDiscarded,
+}
 
 
 def _fixed(t: datetime) -> Clock:
