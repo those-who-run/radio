@@ -138,8 +138,10 @@ its own for it, which radio says from v2's keys (in the script, and built in as
 
 - `start_brief`'s `template_ranked` (`total_cars`): "Ranked on lap time, sixteen
   cars on the timesheet.", in place of v1's "Timed race. P one of sixteen.";
-- `position`'s `template_rank_gained` and `template_rank_lost`: "Up to third on
-  the timesheet.", "Down to second on the timesheet.";
+- `position`'s `template_rank`, the first rank the driver's laps gave: "That
+  puts you P four on the timesheet."; then `template_rank_gained` and
+  `template_rank_lost`: "Up to third on the timesheet.", "Down to second on the
+  timesheet.";
 - `race_summary`'s `template_ranked` (and `template_ranked_at_track` with a
   track): "Session over. Classified first on the timesheet. Best lap …", its
   place from `template_rank`, and no place when ecu sends none.

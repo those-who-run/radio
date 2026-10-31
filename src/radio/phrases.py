@@ -62,7 +62,7 @@ FUEL_PLAIN = (
 GAINED = ("template_gained", "template_gained_lead", "template_gained_podium")
 LOST = ("template_lost", "template_lost_lead")
 # position: a ranked session's place, a rank by lap time (V2_DEFAULTS).
-RANKS = ("template_rank_gained", "template_rank_lost")
+RANKS = ("template_rank", "template_rank_gained", "template_rank_lost")
 FINISHED = ("template", "template_position", "template_position_win", "template_position_podium")
 TEMPS_PLAIN = ("template_tyres_cold", "template_water", "template_oil")
 

@@ -73,7 +73,7 @@ KINDS = {
 # The kinds ecu sends that v1 had no phrase for, so no golden: a ranked session's
 # (the maintainer's decision of 2026-10-31), test_a_ranked_session_is_said_as_one.
 V2_KINDS = {
-    "position": {"template_rank_gained", "template_rank_lost"},
+    "position": {"template_rank", "template_rank_gained", "template_rank_lost"},
     "start_brief": {"template_ranked"},
     "race_summary": {"template_ranked"},
 }
@@ -320,6 +320,10 @@ def test_a_ranked_session_is_said_as_one() -> None:
     phrases = Phrases(templates(script=False))
     brief = Callout("start_brief", "template_ranked", CalloutSlots(total_cars=16))
     assert phrases.say(brief) == "Ranked on lap time, sixteen cars on the timesheet."
+    first = CalloutSlots(position=4)
+    assert phrases.say(Callout("position", "template_rank", first)) == (
+        "That puts you P four on the timesheet."
+    )
     up = CalloutSlots(position=3, previous_position=11)
     assert phrases.say(Callout("position", "template_rank_gained", up)) == (
         "Up to third on the timesheet."
