@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6](https://github.com/those-who-run/radio/compare/v0.1.5...v0.1.6) (2026-10-31)
+
+
+### Features
+
+* **phrases:** "That puts you P four on the timesheet." ([#35](https://github.com/those-who-run/radio/issues/35)) ([9bc4542](https://github.com/those-who-run/radio/commit/9bc4542f4ff52343d87933eed19a8dc9866e3966))
+* **phrases:** a ranked session's brief, rank calls and finish ([#33](https://github.com/those-who-run/radio/issues/33)) ([db6e4ec](https://github.com/those-who-run/radio/commit/db6e4ec82049f16e067a16352c9e73afe706b9ba))
+
 ## [0.1.5](https://github.com/those-who-run/radio/compare/v0.1.4...v0.1.5) (2026-10-31)
 
 
