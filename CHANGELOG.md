@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/those-who-run/radio/compare/v0.1.4...v0.1.5) (2026-10-31)
+
+
+### Features
+
+* **phrases:** the race summary names the track ecu sends ([#31](https://github.com/those-who-run/radio/issues/31)) ([300dfef](https://github.com/those-who-run/radio/commit/300dfef4aca4393092db17b7102be3d17fedb656))
+
 ## [0.1.4](https://github.com/those-who-run/radio/compare/v0.1.3...v0.1.4) (2026-10-30)
 
 
