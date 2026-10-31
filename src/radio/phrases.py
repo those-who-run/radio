@@ -24,7 +24,7 @@ import random
 from collections.abc import Callable
 
 from radio.callout import Callout, CalloutSlots, Corner
-from radio.phrasing import DEFAULTS, Phrasebook, Templates, templates
+from radio.phrasing import DEFAULTS, V2_DEFAULTS, Phrasebook, Templates, templates
 from radio.verbalise import (
     delta_words,
     lap_time_words,
@@ -300,11 +300,20 @@ class Phrases:
             text = book.pick("template_best", d["template_best"])
             return text.format(time=lap_time_words(s.best_lap_ms))
 
+        # The summary names the track when ecu sends it, sure of it (V2_DEFAULTS).
+        track = track_words(s.track) if s.track else ""
+
+        def opening(key: str) -> str:
+            if not track:
+                return book.pick(key, d[key])
+            key += "_at_track"
+            return book.pick(key, V2_DEFAULTS["race_summary"][key])
+
         if kind == "template_quit":
             best = best_words()
             laps = "" if s.laps is None else laps_words(s.laps)
-            text = book.pick("template_quit", d["template_quit"]).format(
-                laps=laps[:1].upper() + laps[1:], best=best
+            text = opening("template_quit").format(
+                laps=laps[:1].upper() + laps[1:], best=best, track=track
             )
             return tidy_sentence(tidy_sentence(text))
         if kind not in FINISHED:
@@ -315,7 +324,7 @@ class Phrases:
                 position=_ordinal(s.position), p=_num(s.position)
             )
         best = best_words()
-        text = book.pick("template", d["template"]).format(position=position, best=best, fuel="")
+        text = opening("template").format(position=position, best=best, fuel="", track=track)
         return tidy_sentence(tidy_sentence(text))
 
     def _temps(self, book: Phrasebook, kind: str, s: CalloutSlots) -> str | None:

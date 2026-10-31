@@ -123,6 +123,14 @@ than v1, which refused only a template that wasn't text, and failed when it pick
 the bad variant). They come from the file `TWR_RADIO_VOICE_FILE` names, and a bad
 one stops radio at start; without it radio speaks the script.
 
+One departure from v1 (the maintainer's decision, 2026-10-31): ecu names no
+track at the start, and sends `race_summary`'s `track` slot only when it is sure
+of the track by the end. With it, the summary opens with the track ("Race over at
+Sportsland SUGO. P one. …"), from v2's own keys `template_at_track` and
+`template_quit_at_track` (in the script, and built in as `V2_DEFAULTS`); without it,
+the summary is v1's. A rules file that sets its own `template` or `template_quit`
+and not the matching `_at_track` key keeps its phrase, without the track.
+
 The phrases have no abbreviations: speech splits sentences after any full stop
 and a space, so "Approx. 3 s" would pause mid-sentence. A test keeps it so.
 

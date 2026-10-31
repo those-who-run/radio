@@ -13,6 +13,7 @@ import yaml
 
 from radio.phrasing import (
     DEFAULTS,
+    V2_DEFAULTS,
     Phrasebook,
     TemplateError,
     load_rules_file,
@@ -90,6 +91,8 @@ PLACEHOLDERS: dict[str, dict[str, set[str]]] = {
         "template_position_podium": {"position", "p"},
         "template_best": {"time"},
         "template_quit": {"laps", "best"},
+        "template_at_track": {"track", "position", "best", "fuel"},
+        "template_quit_at_track": {"track", "laps", "best"},
     },
     "temps": {
         "template_tyre_hot": {"corners"},
@@ -106,7 +109,12 @@ VARIANTS = [
     for key, texts in keys.items()
     for text in texts
 ]
-BUILT_IN = [(rule, key, text) for rule, keys in DEFAULTS.items() for key, text in keys.items()]
+BUILT_IN = [
+    (rule, key, text)
+    for table in (DEFAULTS, V2_DEFAULTS)
+    for rule, keys in table.items()
+    for key, text in keys.items()
+]
 
 
 def test_script_only_has_keys_the_rules_read() -> None:
@@ -147,7 +155,7 @@ def test_variant_is_speakable(rule: str, key: str, text: str) -> None:
 def test_script_lists_lead_with_the_built_in_phrase() -> None:
     for rule, keys in SCRIPT.items():
         for key, texts in keys.items():
-            default = DEFAULTS[rule].get(key)
+            default = DEFAULTS[rule].get(key) or V2_DEFAULTS.get(rule, {}).get(key)
             if default:
                 assert tidy_sentence(texts[0]) == tidy_sentence(default), (rule, key)
 
