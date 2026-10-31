@@ -306,7 +306,7 @@ class Phrases:
         def opening(key: str) -> str:
             if not track:
                 return book.pick(key, d[key])
-            key += "_track"
+            key += "_at_track"
             return book.pick(key, V2_DEFAULTS["race_summary"][key])
 
         if kind == "template_quit":

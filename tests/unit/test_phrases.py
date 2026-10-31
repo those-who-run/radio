@@ -21,7 +21,7 @@ from twr.events.v1 import callout_pb2, car_pb2
 
 from radio.callout import Callout, CalloutSlots, Corner, from_message
 from radio.phrases import FALLBACK, NEEDS, PhraseError, Phrases, corners_phrase, missing
-from radio.phrasing import DEFAULTS, load_script, templates
+from radio.phrasing import DEFAULTS, load_rules_file, load_script, templates
 from radio.speech import split_sentences
 
 TESTDATA = Path(__file__).parent / "testdata"
@@ -301,6 +301,43 @@ def test_the_summary_names_the_track_ecu_sends() -> None:
         assert " at Sportsland SUGO. " in text, text
         text = scripted.say(Callout("race_summary", "template_quit", quit_))
         assert " at Sportsland SUGO. " in text, text
+
+
+def test_a_rules_files_own_summary_is_kept_with_a_track(tmp_path: Path) -> None:
+    """A rules file's own race_summary template (or template_quit), with no
+    _at_track key of its own, is said when ecu sends a track, without the track;
+    one that sets the _at_track key gets it, and a null template is no override."""
+    sixth = CalloutSlots(position=6, track="Sportsland SUGO")
+    quit_ = CalloutSlots(laps=3, track="Sportsland SUGO")
+    f = tmp_path / "rules.yaml"
+    f.write_text(
+        "script: false\nrules:\n  race_summary:\n"
+        '    template: "Flag. {position}"\n'
+        '    template_quit: ["Done. {laps}."]\n'
+    )
+    phrases = Phrases(load_rules_file(f))
+    assert phrases.say(Callout("race_summary", "template_position", sixth)) == (
+        "Flag. Finished sixth."
+    )
+    assert phrases.say(Callout("race_summary", "template_quit", quit_)) == "Done. Three laps."
+    # With the script on too: the script's _at_track variants don't replace it.
+    f.write_text('rules:\n  race_summary:\n    template: "Flag. {position}"\n')
+    flag = Callout("race_summary", "template", CalloutSlots(track="Sportsland SUGO"))
+    assert {Phrases(load_rules_file(f), seed=n).say(flag) for n in range(5)} == {"Flag."}
+
+    f.write_text(
+        "script: false\nrules:\n  race_summary:\n"
+        '    template: "Flag. {position}"\n'
+        '    template_at_track: "Flag at {track}. {position}"\n'
+        "    template_quit: null\n"
+    )
+    phrases = Phrases(load_rules_file(f))
+    assert phrases.say(Callout("race_summary", "template_position", sixth)) == (
+        "Flag at Sportsland SUGO. Finished sixth."
+    )
+    assert phrases.say(Callout("race_summary", "template_quit", quit_)) == (
+        "Session done at Sportsland SUGO. Three laps."
+    )
 
 
 def test_the_corners_as_v1_said_them() -> None:

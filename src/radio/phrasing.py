@@ -87,14 +87,14 @@ DEFAULTS: dict[str, dict[str, str]] = {
 }
 
 # v2's own built-in phrases, for keys v1 had none for. race_summary's
-# template_track and template_quit_track are its summaries naming the track: ecu
+# template_at_track and template_quit_at_track are its summaries naming the track: ecu
 # sends the track slot at the end only when it is sure of it, and names none at
 # the start (the maintainer's decision of 2026-10-31, a departure from v1: a wrong
 # track in VR is worse than none).
 V2_DEFAULTS: dict[str, dict[str, str]] = {
     "race_summary": {
-        "template_track": "Chequered flag at {track}. {position} {best}",
-        "template_quit_track": "Session done at {track}. {laps}. {best}",
+        "template_at_track": "Chequered flag at {track}. {position} {best}",
+        "template_quit_at_track": "Session done at {track}. {laps}. {best}",
     },
 }
 
@@ -148,8 +148,8 @@ PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
         "template_position_podium": frozenset({"position", "p"}),
         "template_best": frozenset({"time"}),
         "template_quit": frozenset({"laps", "best"}),
-        "template_track": frozenset({"track", "position", "best", "fuel"}),
-        "template_quit_track": frozenset({"track", "laps", "best"}),
+        "template_at_track": frozenset({"track", "position", "best", "fuel"}),
+        "template_quit_at_track": frozenset({"track", "laps", "best"}),
     },
     "temps": {"template_tyre_hot": frozenset({"corners"})},
 }
@@ -221,7 +221,26 @@ def templates(script: bool = True, rules: Mapping[str, Any] | None = None) -> Te
             for key, value in keys.items():
                 if str(key).startswith(TEMPLATE_PREFIXES):
                     mine[str(key)] = list(value) if isinstance(value, list) else value
+    if rules is not None:
+        _keep_own_summary(out, rules)
     return out
+
+
+# v2's summary keys naming the track, by the v1 key each stands in for.
+AT_TRACK = {"template": "template_at_track", "template_quit": "template_quit_at_track"}
+
+
+def _keep_own_summary(out: Templates, rules: Mapping[str, Any]) -> None:
+    """A rules file that sets race_summary's template or template_quit, and not its
+    _at_track key, keeps its own phrase when ecu sends a track: the user's summary
+    is said, without the track, rather than replaced by the built-in one."""
+    keys = rules.get("race_summary")
+    if not isinstance(keys, Mapping):
+        return
+    mine = out.setdefault("race_summary", {})
+    for plain, at_track in AT_TRACK.items():
+        if at_track not in keys and Phrasebook(keys).has(plain):
+            mine[at_track] = mine[plain]
 
 
 def validate_templates(rules: Mapping[str, Any]) -> None:

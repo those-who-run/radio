@@ -91,8 +91,8 @@ PLACEHOLDERS: dict[str, dict[str, set[str]]] = {
         "template_position_podium": {"position", "p"},
         "template_best": {"time"},
         "template_quit": {"laps", "best"},
-        "template_track": {"track", "position", "best", "fuel"},
-        "template_quit_track": {"track", "laps", "best"},
+        "template_at_track": {"track", "position", "best", "fuel"},
+        "template_quit_at_track": {"track", "laps", "best"},
     },
     "temps": {
         "template_tyre_hot": {"corners"},
