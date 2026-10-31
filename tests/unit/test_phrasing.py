@@ -73,6 +73,7 @@ PLACEHOLDERS: dict[str, dict[str, set[str]]] = {
             "template_gained_podium",
             "template_lost",
             "template_lost_lead",
+            "template_rank",
             "template_rank_gained",
             "template_rank_lost",
         )

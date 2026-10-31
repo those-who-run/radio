@@ -93,14 +93,16 @@ DEFAULTS: dict[str, dict[str, str]] = {
 # track in VR is worse than none). The ranked keys are a ranked session's
 # (qualifying, or practice with the field out: the maintainer's decision of
 # 2026-10-31, which v1 said as a timed race): start_brief's template_ranked is its
-# brief, position's template_rank_gained and template_rank_lost its place as a rank
-# by lap time, and race_summary's template_ranked its finish, whose {position} is
+# brief, position's template_rank (the first rank the driver's laps gave), then
+# template_rank_gained and template_rank_lost, its place as a rank by lap time, and
+# race_summary's template_ranked its finish, whose {position} is race_summary's
 # template_rank.
 V2_DEFAULTS: dict[str, dict[str, str]] = {
     "start_brief": {
         "template_ranked": "Ranked on lap time, {total} cars on the timesheet.",
     },
     "position": {
+        "template_rank": "That puts you P {p} on the timesheet.",
         "template_rank_gained": "Up to {position} on the timesheet.",
         "template_rank_lost": "Down to {position} on the timesheet.",
     },
@@ -146,6 +148,7 @@ PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
             "template_gained_podium",
             "template_lost",
             "template_lost_lead",
+            "template_rank",
             "template_rank_gained",
             "template_rank_lost",
         )
