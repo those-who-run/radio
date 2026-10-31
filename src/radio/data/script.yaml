@@ -193,6 +193,19 @@ rules:
       - "That is the session. {laps}. {best}"
       - "Good session. {laps} in the bag. {best}"
       - "Calling it there. {laps}. {best}"
+    # v2's, not v1's: the summaries above naming the track, which ecu sends only
+    # when it is sure of it (the maintainer's decision of 2026-10-31: no track at
+    # the start, a departure from v1).
+    template_track:
+      - "Chequered flag at {track}. {position} {best}"
+      - "Session complete at {track}. {position}. {best}."
+      - "Race over at {track}. {position}. {best}."
+      - "That is the flag at {track}. {position}. {best}."
+    template_quit_track:
+      - "Session done at {track}. {laps}. {best}"
+      - "That is the session at {track}. {laps}. {best}"
+      - "Good session at {track}. {laps} in the bag. {best}"
+      - "Calling it there at {track}. {laps}. {best}"
   temps:
     template_tyre_hot:         # {corners}: "Front left tyre", "Rear tyres", "Front left and rear left tyres", "All tyres"
       - "{corners} hot."

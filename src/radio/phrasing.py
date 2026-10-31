@@ -86,6 +86,18 @@ DEFAULTS: dict[str, dict[str, str]] = {
     },
 }
 
+# v2's own built-in phrases, for keys v1 had none for. race_summary's
+# template_track and template_quit_track are its summaries naming the track: ecu
+# sends the track slot at the end only when it is sure of it, and names none at
+# the start (the maintainer's decision of 2026-10-31, a departure from v1: a wrong
+# track in VR is worse than none).
+V2_DEFAULTS: dict[str, dict[str, str]] = {
+    "race_summary": {
+        "template_track": "Chequered flag at {track}. {position} {best}",
+        "template_quit_track": "Session done at {track}. {laps}. {best}",
+    },
+}
+
 # The keys a rules file's template settings start with (v1's TEMPLATE_PREFIXES): the
 # rest of a v1 rules file (priorities, thresholds) belongs to ecu, and is ignored.
 TEMPLATE_PREFIXES = ("template", "delta_")
@@ -136,6 +148,8 @@ PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
         "template_position_podium": frozenset({"position", "p"}),
         "template_best": frozenset({"time"}),
         "template_quit": frozenset({"laps", "best"}),
+        "template_track": frozenset({"track", "position", "best", "fuel"}),
+        "template_quit_track": frozenset({"track", "laps", "best"}),
     },
     "temps": {"template_tyre_hot": frozenset({"corners"})},
 }

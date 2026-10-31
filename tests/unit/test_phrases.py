@@ -280,6 +280,29 @@ def test_slots_not_set_are_not_said() -> None:
     assert phrases.say(joined) == "Back with you. Lap seven. P one."
 
 
+def test_the_summary_names_the_track_ecu_sends() -> None:
+    """The maintainer's decision of 2026-10-31, a departure from v1: ecu names no
+    track at the start, and sends the summary's track slot only when it is sure of
+    it; radio says it in the summary's opening, and nothing without it."""
+    phrases = Phrases(templates(script=False))
+    win = CalloutSlots(position=1, best_lap_ms=83_610, track="Sportsland SUGO")
+    assert phrases.say(Callout("race_summary", "template_position_win", win)) == (
+        "Chequered flag at Sportsland SUGO. Finished first. Best lap one twenty-three point six."
+    )
+    flag = Callout("race_summary", "template", CalloutSlots(track="Suzuka Circuit East Course"))
+    assert phrases.say(flag) == "Chequered flag at Suzuka Circuit East Course."
+    quit_ = CalloutSlots(laps=3, best_lap_ms=97_278, track="Sportsland SUGO")
+    assert phrases.say(Callout("race_summary", "template_quit", quit_)) == (
+        "Session done at Sportsland SUGO. Three laps. Best lap one thirty-seven point three."
+    )
+    scripted = Phrases(seed=1)
+    for _ in range(8):
+        text = scripted.say(Callout("race_summary", "template_position_win", win))
+        assert " at Sportsland SUGO. " in text, text
+        text = scripted.say(Callout("race_summary", "template_quit", quit_))
+        assert " at Sportsland SUGO. " in text, text
+
+
 def test_the_corners_as_v1_said_them() -> None:
     fl, fr, rl, rr = Corner.FRONT_LEFT, Corner.FRONT_RIGHT, Corner.REAR_LEFT, Corner.REAR_RIGHT
     assert corners_phrase((rr, rl)) == "Rear tyres"
