@@ -136,6 +136,16 @@ rules:
       - "Lost the lead. Down to {position}."
       - "Dropped to {position}."
       - "Fell from first. Now {position}."
+    # v2's, not v1's: a ranked session's place, a rank by lap time (qualifying or
+    # practice with the field out, the maintainer's decision of 2026-10-31).
+    template_rank_gained:
+      - "Up to {position} on the timesheet."
+      - "Moved up to {position} on times."
+      - "That time puts you {position}."
+    template_rank_lost:
+      - "Down to {position} on the timesheet."
+      - "Dropped to {position} on times."
+      - "Someone went quicker. Now {position}."
   start_brief:
     template_track:
       - "{track}."
@@ -162,6 +172,12 @@ rules:
       - "Starting {position} from {total}."
       - "Grid slot {p} out of {total}."
       - "Lined up {position} of {total}."
+    # v2's, not v1's: a ranked session's brief (qualifying or practice with the
+    # field out, the maintainer's decision of 2026-10-31).
+    template_ranked:
+      - "Ranked on lap time, {total} cars on the timesheet."
+      - "Lap times count. {total} cars out."
+      - "Set a time. Field of {total}."
   race_summary:
     template:
       - "Chequered flag. {position} {best}"
@@ -206,6 +222,21 @@ rules:
       - "That is the session at {track}. {laps}. {best}"
       - "Good session at {track}. {laps} in the bag. {best}"
       - "Calling it there at {track}. {laps}. {best}"
+    # v2's, not v1's: a ranked session's finish (qualifying or practice with the
+    # field out, the maintainer's decision of 2026-10-31); {position} is
+    # template_rank.
+    template_ranked:
+      - "Session over. {position} {best}"
+      - "That is the session. {position} {best}"
+      - "Time is up. {position} {best}"
+    template_ranked_at_track:
+      - "Session over at {track}. {position} {best}"
+      - "That is the session at {track}. {position} {best}"
+      - "Time is up at {track}. {position} {best}"
+    template_rank:
+      - "Classified {position} on the timesheet."
+      - "You end up {position} on times."
+      - "Finished the session {position} on times."
   temps:
     template_tyre_hot:         # {corners}: "Front left tyre", "Rear tyres", "Front left and rear left tyres", "All tyres"
       - "{corners} hot."

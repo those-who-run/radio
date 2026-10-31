@@ -73,6 +73,8 @@ PLACEHOLDERS: dict[str, dict[str, set[str]]] = {
             "template_gained_podium",
             "template_lost",
             "template_lost_lead",
+            "template_rank_gained",
+            "template_rank_lost",
         )
     },
     "start_brief": {
@@ -83,6 +85,7 @@ PLACEHOLDERS: dict[str, dict[str, set[str]]] = {
         "template_position": {"p", "position", "total"},
         "template_joined": {"lap"},
         "template_joined_position": {"p", "position", "total"},
+        "template_ranked": {"total"},
     },
     "race_summary": {
         "template": {"position", "best", "fuel"},
@@ -93,6 +96,9 @@ PLACEHOLDERS: dict[str, dict[str, set[str]]] = {
         "template_quit": {"laps", "best"},
         "template_at_track": {"track", "position", "best", "fuel"},
         "template_quit_at_track": {"track", "laps", "best"},
+        "template_ranked": {"position", "best"},
+        "template_ranked_at_track": {"track", "position", "best"},
+        "template_rank": {"position", "p"},
     },
     "temps": {
         "template_tyre_hot": {"corners"},
@@ -197,8 +203,13 @@ def test_phrasebook_strings_lists_and_fallbacks() -> None:
     assert book.first(["missing"], "d") == "d"
 
 
-GAINED = ("template_gained", "template_gained_lead", "template_gained_podium")
-LOST = ("template_lost", "template_lost_lead")
+GAINED = (
+    "template_gained",
+    "template_gained_lead",
+    "template_gained_podium",
+    "template_rank_gained",
+)
+LOST = ("template_lost", "template_lost_lead", "template_rank_lost")
 
 
 def test_gaining_and_losing_a_place_never_sound_the_same() -> None:
@@ -216,6 +227,8 @@ def test_gaining_and_losing_a_place_never_sound_the_same() -> None:
         ("template_gained_podium", {"up", "moved", "into"}),
         ("template_lost", {"down", "fell", "dropped", "lost"}),
         ("template_lost_lead", {"lost", "dropped", "fell"}),
+        ("template_rank_gained", {"up", "moved", "puts"}),
+        ("template_rank_lost", {"down", "dropped", "quicker"}),
     ],
 )
 def test_every_place_change_variant_says_which_way(key: str, words: set[str]) -> None:

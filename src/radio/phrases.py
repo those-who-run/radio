@@ -61,6 +61,8 @@ FUEL_PLAIN = (
 )
 GAINED = ("template_gained", "template_gained_lead", "template_gained_podium")
 LOST = ("template_lost", "template_lost_lead")
+# position: a ranked session's place, a rank by lap time (V2_DEFAULTS).
+RANKS = ("template_rank_gained", "template_rank_lost")
 FINISHED = ("template", "template_position", "template_position_win", "template_position_podium")
 TEMPS_PLAIN = ("template_tyres_cold", "template_water", "template_oil")
 
@@ -83,8 +85,9 @@ NEEDS: dict[tuple[str, str], tuple[str, ...]] = {
     **{("lap_time", k): ("lap", "lap_time_ms", "delta_ms") for k in (*DELTAS[1:], *NEW_BESTS)},
     ("fuel", "template"): ("laps",),
     ("fuel", "template_short"): ("laps",),
-    **{("position", k): ("position",) for k in (*GAINED, *LOST)},
+    **{("position", k): ("position",) for k in (*GAINED, *LOST, *RANKS)},
     ("start_brief", "template_track"): ("track",),
+    ("start_brief", "template_ranked"): ("total_cars",),
     ("start_brief", "template_joined"): ("lap",),
     **{("race_summary", k): ("position",) for k in FINISHED[1:]},
     ("race_summary", "template_quit"): ("laps",),
@@ -240,6 +243,9 @@ class Phrases:
         return tidy_sentence(book.pick("template", DEFAULTS["final_lap"]["template"]))
 
     def _position(self, book: Phrasebook, kind: str, s: CalloutSlots) -> str | None:
+        if kind in RANKS:
+            text = book.pick(kind, V2_DEFAULTS["position"][kind])
+            return tidy_sentence(text.format(position=_ordinal(s.position), p=_num(s.position)))
         if kind in GAINED:
             default = DEFAULTS["position"]["template_gained"]
         elif kind in LOST:
@@ -265,6 +271,9 @@ class Phrases:
 
         if kind == "template_track":
             return tidy_sentence(track_phrase()) if s.track else ""
+        if kind == "template_ranked":
+            text = book.pick(kind, V2_DEFAULTS["start_brief"][kind])
+            return tidy_sentence(text.format(total=_num(s.total_cars)))
         if kind == "template_joined":
             lap = _num(s.lap)
             if s.laps is not None:
@@ -315,6 +324,16 @@ class Phrases:
             text = opening("template_quit").format(
                 laps=laps[:1].upper() + laps[1:], best=best, track=track
             )
+            return tidy_sentence(tidy_sentence(text))
+        if kind == "template_ranked":
+            v2 = V2_DEFAULTS["race_summary"]
+            position = ""
+            if s.position is not None:
+                position = book.pick("template_rank", v2["template_rank"]).format(
+                    position=_ordinal(s.position), p=_num(s.position)
+                )
+            key = "template_ranked_at_track" if track else "template_ranked"
+            text = book.pick(key, v2[key]).format(position=position, best=best_words(), track=track)
             return tidy_sentence(tidy_sentence(text))
         if kind not in FINISHED:
             return None
