@@ -176,7 +176,7 @@ rules:
     # field out, the maintainer's decision of 2026-10-31).
     template_ranked:
       - "Ranked on lap time, {total} cars on the timesheet."
-      - "Lap times count, against {total} cars."
+      - "Lap times count. {total} cars out."
       - "Set a time. Field of {total}."
   race_summary:
     template:
