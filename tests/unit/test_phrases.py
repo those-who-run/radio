@@ -70,6 +70,14 @@ KINDS = {
     "temps": {"template_tyre_hot", "template_tyres_cold", "template_water", "template_oil"},
     "telemetry": {"template_lost", "template_back"},
 }
+# The kinds ecu sends that v1 had no phrase for, so no golden: a ranked session's
+# (the maintainer's decision of 2026-10-31), test_a_ranked_session_is_said_as_one.
+V2_KINDS = {
+    "position": {"template_rank_gained", "template_rank_lost"},
+    "start_brief": {"template_ranked"},
+    "race_summary": {"template_ranked"},
+}
+ALL_KINDS = {rule: kinds | V2_KINDS.get(rule, set()) for rule, kinds in KINDS.items()}
 
 
 def _snake(name: str) -> str:
@@ -185,7 +193,7 @@ def test_a_situational_key_with_no_template_at_all_takes_the_built_in() -> None:
 
 def test_a_key_never_gives_the_same_variant_twice_running() -> None:
     phrases = Phrases()
-    for rule, kinds in KINDS.items():
+    for rule, kinds in ALL_KINDS.items():
         for kind in kinds:
             said = [phrases.say(Callout(rule, kind, _worst_slots())) for _ in range(30)]
             if len(set(said)) > 1:
@@ -303,6 +311,45 @@ def test_the_summary_names_the_track_ecu_sends() -> None:
         assert " at Sportsland SUGO. " in text, text
 
 
+def test_a_ranked_session_is_said_as_one() -> None:
+    """The maintainer's decision of 2026-10-31, a departure from v1: a ranked
+    session (qualifying, or practice with the field out) is ecu's to tell, and
+    radio says its kinds as their own: the brief, the place as a rank by lap time,
+    and the finish, with the track when ecu sends one and no place when it sends
+    none."""
+    phrases = Phrases(templates(script=False))
+    brief = Callout("start_brief", "template_ranked", CalloutSlots(total_cars=16))
+    assert phrases.say(brief) == "Ranked on lap time, sixteen cars on the timesheet."
+    up = CalloutSlots(position=3, previous_position=11)
+    assert phrases.say(Callout("position", "template_rank_gained", up)) == (
+        "Up to third on the timesheet."
+    )
+    down = CalloutSlots(position=2, previous_position=1)
+    assert phrases.say(Callout("position", "template_rank_lost", down)) == (
+        "Down to second on the timesheet."
+    )
+    done = CalloutSlots(position=1, best_lap_ms=96_595)
+    assert phrases.say(Callout("race_summary", "template_ranked", done)) == (
+        "Session over. Classified first on the timesheet. Best lap one thirty-six point six."
+    )
+    at = CalloutSlots(position=4, best_lap_ms=96_595, track="Suzuka Circuit")
+    assert phrases.say(Callout("race_summary", "template_ranked", at)) == (
+        "Session over at Suzuka Circuit. Classified fourth on the timesheet. "
+        "Best lap one thirty-six point six."
+    )
+    alone = CalloutSlots(best_lap_ms=96_595)
+    assert phrases.say(Callout("race_summary", "template_ranked", alone)) == (
+        "Session over. Best lap one thirty-six point six."
+    )
+    assert missing(Callout("start_brief", "template_ranked")) == ["total_cars"]
+    scripted = Phrases(seed=1)
+    for _ in range(8):
+        assert "sixteen" in scripted.say(brief)
+        assert "third" in scripted.say(Callout("position", "template_rank_gained", up))
+        text = scripted.say(Callout("race_summary", "template_ranked", at))
+        assert " at Suzuka Circuit. " in text and "fourth" in text, text
+
+
 def test_a_rules_files_own_summary_is_kept_with_a_track(tmp_path: Path) -> None:
     """A rules file's own race_summary template (or template_quit), with no
     _at_track key of its own, is said when ecu sends a track, without the track;
@@ -381,7 +428,7 @@ def test_no_phrase_holds_an_abbreviation() -> None:
     sentences: nothing like "Approx. 3 s" that would pause mid-sentence."""
     table = templates()
     rng = random.Random(0)
-    for rule, kinds in KINDS.items():
+    for rule, kinds in ALL_KINDS.items():
         for kind in kinds:
             phrases = Phrases(table, seed=rng.randrange(1 << 30))
             for _ in range(40):
@@ -614,4 +661,4 @@ def test_missing_names_the_slots_a_kind_says() -> None:
     assert missing(Callout("", "", text="Radio check.")) == []
     # Every kind it lists is one radio phrases.
     for rule, kind in NEEDS:
-        assert kind in KINDS[rule], (rule, kind)
+        assert kind in ALL_KINDS[rule], (rule, kind)

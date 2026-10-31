@@ -90,11 +90,26 @@ DEFAULTS: dict[str, dict[str, str]] = {
 # template_at_track and template_quit_at_track are its summaries naming the track: ecu
 # sends the track slot at the end only when it is sure of it, and names none at
 # the start (the maintainer's decision of 2026-10-31, a departure from v1: a wrong
-# track in VR is worse than none).
+# track in VR is worse than none). The ranked keys are a ranked session's
+# (qualifying, or practice with the field out: the maintainer's decision of
+# 2026-10-31, which v1 said as a timed race): start_brief's template_ranked is its
+# brief, position's template_rank_gained and template_rank_lost its place as a rank
+# by lap time, and race_summary's template_ranked its finish, whose {position} is
+# template_rank.
 V2_DEFAULTS: dict[str, dict[str, str]] = {
+    "start_brief": {
+        "template_ranked": "Ranked on lap time, {total} cars on the timesheet.",
+    },
+    "position": {
+        "template_rank_gained": "Up to {position} on the timesheet.",
+        "template_rank_lost": "Down to {position} on the timesheet.",
+    },
     "race_summary": {
         "template_at_track": "Chequered flag at {track}. {position} {best}",
         "template_quit_at_track": "Session done at {track}. {laps}. {best}",
+        "template_ranked": "Session over. {position} {best}",
+        "template_ranked_at_track": "Session over at {track}. {position} {best}",
+        "template_rank": "Classified {position} on the timesheet.",
     },
 }
 
@@ -131,6 +146,8 @@ PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
             "template_gained_podium",
             "template_lost",
             "template_lost_lead",
+            "template_rank_gained",
+            "template_rank_lost",
         )
     },
     "start_brief": {
@@ -140,6 +157,7 @@ PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
         "template_position": frozenset({"p", "position", "total"}),
         "template_joined": frozenset({"lap"}),
         "template_joined_position": frozenset({"p", "position", "total"}),
+        "template_ranked": frozenset({"total"}),
     },
     "race_summary": {
         "template": frozenset({"position", "best", "fuel"}),
@@ -150,6 +168,9 @@ PLACEHOLDERS: dict[str, dict[str, frozenset[str]]] = {
         "template_quit": frozenset({"laps", "best"}),
         "template_at_track": frozenset({"track", "position", "best", "fuel"}),
         "template_quit_at_track": frozenset({"track", "laps", "best"}),
+        "template_ranked": frozenset({"position", "best"}),
+        "template_ranked_at_track": frozenset({"track", "position", "best"}),
+        "template_rank": frozenset({"position", "p"}),
     },
     "temps": {"template_tyre_hot": frozenset({"corners"})},
 }
@@ -227,7 +248,11 @@ def templates(script: bool = True, rules: Mapping[str, Any] | None = None) -> Te
 
 
 # v2's summary keys naming the track, by the v1 key each stands in for.
-AT_TRACK = {"template": "template_at_track", "template_quit": "template_quit_at_track"}
+AT_TRACK = {
+    "template": "template_at_track",
+    "template_quit": "template_quit_at_track",
+    "template_ranked": "template_ranked_at_track",
+}
 
 
 def _keep_own_summary(out: Templates, rules: Mapping[str, Any]) -> None:

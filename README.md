@@ -131,6 +131,19 @@ Sportsland SUGO. P one. …"), from v2's own keys `template_at_track` and
 the summary is v1's. A rules file that sets its own `template` or `template_quit`
 and not the matching `_at_track` key keeps its phrase, without the track.
 
+Another (the maintainer's decision, 2026-10-31): ecu tells a ranked session,
+qualifying or practice with the field out, from a timed race, and sends kinds of
+its own for it, which radio says from v2's keys (in the script, and built in as
+`V2_DEFAULTS`; v1's `DEFAULTS` stay v1's):
+
+- `start_brief`'s `template_ranked` (`total_cars`): "Ranked on lap time, sixteen
+  cars on the timesheet.", in place of v1's "Timed race. P one of sixteen.";
+- `position`'s `template_rank_gained` and `template_rank_lost`: "Up to third on
+  the timesheet.", "Down to second on the timesheet.";
+- `race_summary`'s `template_ranked` (and `template_ranked_at_track` with a
+  track): "Session over. Classified first on the timesheet. Best lap …", its
+  place from `template_rank`, and no place when ecu sends none.
+
 The phrases have no abbreviations: speech splits sentences after any full stop
 and a space, so "Approx. 3 s" would pause mid-sentence. A test keeps it so.
 
