@@ -53,7 +53,7 @@ jobs:
   checks:
     permissions:
       contents: read
-    uses: those-who-run/.github/.github/workflows/checks.yml@383a94751f82cef93c6babdc99526b4133eb0f55 # v0.2.17
+    uses: those-who-run/.github/.github/workflows/checks.yml@43bd417e15003de63a0c92122fa93da301cf586e # v0.2.18
 
   # uv.lock up to date, the install from it, ruff format and check, mypy, and the
   # tests with no skips and the coverage floor, as `make python` runs them. The
@@ -62,6 +62,6 @@ jobs:
   python:
     permissions:
       contents: read
-    uses: those-who-run/.github/.github/workflows/python.yml@383a94751f82cef93c6babdc99526b4133eb0f55 # v0.2.17
+    uses: those-who-run/.github/.github/workflows/python.yml@43bd417e15003de63a0c92122fa93da301cf586e # v0.2.18
     with:
       coverage-floor: 90
