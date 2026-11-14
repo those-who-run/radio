@@ -10,18 +10,19 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from radio.phrasing import TemplateError, Templates, load_rules_file, templates
-from radio.voice import DEFAULT_VOICE, VoiceError, VoiceSettings
+from radio.voice import DEFAULT_VOICE, VoiceError, VoiceSettings, sums
 from radio.voice import load as load_voice
 
 DEFAULT_NATS_URL = "nats://127.0.0.1:4222"
 DEFAULT_HEALTH_ADDR = ":8080"
 # Where `make voice` puts v1's voice, from the repository's root.
-DEFAULT_VOICE_MODEL = Path("voices") / f"{DEFAULT_VOICE}.onnx"
+DEFAULT_VOICES_DIR = Path("voices")
+DEFAULT_VOICE_MODEL = DEFAULT_VOICES_DIR / f"{DEFAULT_VOICE}.onnx"
 # The speech cache's directory under $XDG_CACHE_HOME, or ~/.cache without it.
 CACHE_NAME = "twr-radio"
 DEFAULT_CACHE_MAX_MB = 100
@@ -85,7 +86,8 @@ class Settings:
     # line. The image sets json.
     log_format: str = "text"
     # The Piper voice, an .onnx file with its .onnx.json beside it:
-    # TWR_RADIO_VOICE_MODEL. v1's en_GB-alba-medium by default.
+    # TWR_RADIO_VOICE_MODEL, else <TWR_RADIO_VOICES_DIR>/<TWR_RADIO_VOICE>.onnx.
+    # v1's en_GB-alba-medium by default.
     voice_model: Path = DEFAULT_VOICE_MODEL
     # The YAML file whose `voice:` section tunes the voice, in v1's rules file
     # format: TWR_RADIO_VOICE_FILE. Unset, v1's defaults.
@@ -155,6 +157,7 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         voice_settings = load_voice(voice_file) if voice_file else VoiceSettings()
     except VoiceError as err:
         raise SettingsError(f"TWR_RADIO_VOICE_FILE: {err}") from err
+    voice_model = voice_model_path(get)
     max_mb = get("TWR_RADIO_CACHE_MAX_MB") or str(DEFAULT_CACHE_MAX_MB)
     if not (max_mb.isascii() and max_mb.isdigit()):
         raise SettingsError(f"TWR_RADIO_CACHE_MAX_MB: {max_mb!r} is not a whole number of MiB")
@@ -201,7 +204,7 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         health_port=port,
         log_level=LEVELS[level_name],
         log_format=log_format,
-        voice_model=Path(get("TWR_RADIO_VOICE_MODEL") or DEFAULT_VOICE_MODEL),
+        voice_model=voice_model,
         voice_file=voice_file,
         voice=voice_settings,
         cache_dir=Path(get("TWR_RADIO_CACHE_DIR") or default_cache_dir(environ)),
@@ -217,6 +220,20 @@ def from_env(environ: Mapping[str, str]) -> Settings:
         idle_disconnect_secs=idle,
         reconnect_backoff_secs=backoff,
     )
+
+
+def voice_model_path(get: Callable[[str], str]) -> Path:
+    """TWR_RADIO_VOICE_MODEL if set, else the voice TWR_RADIO_VOICE names in
+    TWR_RADIO_VOICES_DIR. A name radio has no sums for is an error."""
+    if model := get("TWR_RADIO_VOICE_MODEL"):
+        return Path(model)
+    name = get("TWR_RADIO_VOICE") or DEFAULT_VOICE
+    known = sorted(n.removesuffix(".onnx") for n in sums() if n.endswith(".onnx"))
+    if name not in known:
+        raise SettingsError(
+            f"TWR_RADIO_VOICE: {name!r} is not a voice radio knows: {', '.join(known)}"
+        )
+    return Path(get("TWR_RADIO_VOICES_DIR") or DEFAULT_VOICES_DIR) / f"{name}.onnx"
 
 
 def seconds(environ: Mapping[str, str], name: str, default: float) -> float:

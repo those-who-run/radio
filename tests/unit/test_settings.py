@@ -166,3 +166,29 @@ def test_the_discord_settings() -> None:
     defaults = from_env({})
     assert (defaults.idle_disconnect_secs, defaults.reconnect_backoff_secs) == (600.0, 15.0)
     assert defaults.discord_token is None and defaults.secrets() == ()
+
+
+def test_ac1_a_voice_by_name_in_the_voices_dir() -> None:
+    s = from_env(
+        {
+            "TWR_RADIO_VOICE": "en_GB-northern_english_male-medium",
+            "TWR_RADIO_VOICES_DIR": "/v",
+        }
+    )
+    assert s.voice_model == Path("/v/en_GB-northern_english_male-medium.onnx")
+
+
+def test_ac2_no_voice_set_is_alba() -> None:
+    assert from_env({}).voice_model == Path("voices/en_GB-alba-medium.onnx")
+
+
+def test_ac3_the_model_path_wins_over_the_name() -> None:
+    s = from_env({"TWR_RADIO_VOICE": "en_GB-alba-medium", "TWR_RADIO_VOICE_MODEL": "/m/own.onnx"})
+    assert s.voice_model == Path("/m/own.onnx")
+
+
+def test_ac4_an_unknown_voice_name_lists_the_known_ones() -> None:
+    with pytest.raises(SettingsError) as err:
+        from_env({"TWR_RADIO_VOICE": "nobody"})
+    for name in ("en_GB-alba-medium", "en_GB-northern_english_male-medium"):
+        assert name in str(err.value)
