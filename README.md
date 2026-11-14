@@ -47,6 +47,8 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_LOG_LEVEL` | `info` | The lowest level logged: `debug`, `info`, `warn` or `error`. |
 | `TWR_LOG_FORMAT` | `text` (`json` in the image) | `text` writes logfmt, `json` one object a line. |
 | `TWR_RADIO_VOICE_MODEL` | `voices/en_GB-alba-medium.onnx`, relative to the working directory, where `make voice` puts it from the repository's root (`/app/voices/en_GB-alba-medium.onnx`, baked in, in the image) | The Piper voice, an `.onnx` file with its `.onnx.json` beside it. |
+| `TWR_RADIO_VOICE` | `en_GB-alba-medium` | The Piper voice by name: `<TWR_RADIO_VOICES_DIR>/<name>.onnx`, with its `.onnx.json` beside it. radio knows `en_GB-alba-medium` and `en_GB-northern_english_male-medium`; another name stops it with exit 2. `TWR_RADIO_VOICE_MODEL` wins when both are set. |
+| `TWR_RADIO_VOICES_DIR` | `voices`, relative to the working directory | The directory `TWR_RADIO_VOICE` names its voice in. |
 | `TWR_RADIO_SRC` | `live` | The source whose callouts radio speaks, `twr.v1.<src>.callout.>`: `live`, or `replay-<run>` for a replay. Letters, digits, `-` and `_`. |
 | `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35), and v1's script | A v1 rules file: its `voice:` section tunes the voice ([The voice](#the-voice)), and its `script:` and template keys the phrases ([The phrases](#the-phrases)). |
 | `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
@@ -73,7 +75,7 @@ The model is never committed. `make voice` fetches it into `voices/` from the
 pinned [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/en/en_GB/alba/medium)
 release and checks both files against [`src/radio/voices/SHA256SUMS`](src/radio/voices/SHA256SUMS),
 v1's sums; the image bakes it in the same way, and radio checks a known voice
-again when it loads it. A voice of your own is a path in `TWR_RADIO_VOICE_MODEL`;
+again when it loads it. A voice is picked by name with `TWR_RADIO_VOICE`; a voice of your own is a path in `TWR_RADIO_VOICE_MODEL`;
 radio has no sums for it, so it logs `voice model not checked`.
 
 The voice file's `voice:` section takes v1's keys. In v2 the rules belong to

@@ -44,3 +44,9 @@ def test_fails_when_it_cannot_listen() -> None:
         env = {"TWR_HEALTH_ADDR": f"127.0.0.1:{port}", "TWR_LOG_FORMAT": "json"}
         assert main([], env, out, asyncio.Event()) == 1
     assert json.loads(out.getvalue().splitlines()[-1])["msg"] == "stopped"
+
+
+def test_ac4_an_unknown_voice_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main([], {"TWR_RADIO_VOICE": "nobody"}, io.StringIO()) == 2
+    err = capsys.readouterr().err
+    assert "TWR_RADIO_VOICE" in err and "en_GB-northern_english_male-medium" in err

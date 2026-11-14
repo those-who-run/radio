@@ -111,6 +111,12 @@ def test_the_sums_are_v1s() -> None:
         "en_GB-alba-medium.onnx.json": (
             "aa965a2f02ecced632c2694e1fc72bbff6d65f265fab567ca945918c73dd89f4"
         ),
+        "en_GB-northern_english_male-medium.onnx": (
+            "57a219ae8e638873db7d18893304be5069c42868f392bb95c3ff17f0690d0689"
+        ),
+        "en_GB-northern_english_male-medium.onnx.json": (
+            "69557ed3d974463453e9b0c09dd99a7ed0e52b8b87b64b357dbeeb2540a97d47"
+        ),
     }
 
 

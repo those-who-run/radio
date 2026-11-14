@@ -394,3 +394,15 @@ def test_the_estimate_is_the_letters_the_sentences_and_the_pauses() -> None:
     assert speech.estimate("Final lap.", 1.8, 0) == pytest.approx(2 * one)
     assert speech.estimate("Final lap.", None, 0) == pytest.approx(one / 0.9)
     assert speech.estimate("...", 0.9, 0.35) == 0.0
+
+
+def test_ac6_the_two_named_voices_give_two_keys_for_one_sentence(tmp_path: Path) -> None:
+    keys = []
+    for name in ("en_GB-alba-medium", "en_GB-northern_english_male-medium"):
+        model = tmp_path / f"{name}.onnx"
+        model.write_bytes(b"onnx")
+        keys.append(voice_tag(model))
+    assert keys[0] != keys[1]
+    a = synth(tmp_path, voice=FakeVoice(keys[0])).render("Box.")
+    b = synth(tmp_path, voice=FakeVoice(keys[1])).render("Box.")
+    assert a is not None and b is not None and a.path != b.path
