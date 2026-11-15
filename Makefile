@@ -13,10 +13,12 @@ RUN := uv run --no-sync
 # ci.yml passes to python.yml and pyproject.toml's fail_under
 # (tests/test_python_floor.py keeps the three equal).
 COVERAGE_FLOOR := 90
-# The Piper voice, as v1: fetched from the pinned rhasspy/piper-voices release and
-# checked against src/radio/voices/SHA256SUMS, which the Dockerfile checks too.
-VOICE     := en_GB-alba-medium
-VOICE_URL := https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alba/medium
+# The Piper voices: every one named in src/radio/voices/SHA256SUMS, fetched from the
+# pinned rhasspy/piper-voices release and checked against those sums, which the
+# Dockerfile does too. VOICE is v1's, the default and the one `make voice-test` uses.
+VOICE      := en_GB-alba-medium
+VOICES_URL := https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0
+SUMS       := src/radio/voices/SHA256SUMS
 
 .PHONY: help
 help:
@@ -25,7 +27,7 @@ help:
 	@echo "venv      - install the project and its tools from uv.lock into .venv"
 	@echo "python    - the Python checks, as CI's python / check runs them: lock, format, lint, types, py-test"
 	@echo "py-test   - the package's tests under coverage, with the floor; a skipped test fails"
-	@echo "voice     - fetch the Piper voice into voices/ and check its sha256"
+	@echo "voice     - fetch the Piper voices into voices/ and check their sha256"
 	@echo "voice-test - the synthesiser with the real voice (make voice first, or TWR_RADIO_VOICE_MODEL); not in make check"
 	@echo "fmt       - format and fix the Python code with ruff"
 	@echo "lock      - re-resolve uv.lock after changing pyproject.toml"
@@ -64,15 +66,18 @@ py-test:
 	$(RUN) coverage run -m pytest -rs
 	$(RUN) coverage report --fail-under=$(COVERAGE_FLOOR)
 
-# A file already there is checked, not fetched again; one that fails its sum is removed.
+# A file already there is checked, not fetched again; one that fails its sum is
+# removed. A voice's folder in the release follows from its name: en_GB-alba-medium
+# is en/en_GB/alba/medium (language, locale, speaker, quality).
 .PHONY: voice
 voice:
 	mkdir -p voices
-	cd voices && for f in $(VOICE).onnx $(VOICE).onnx.json; do \
-		test -f $$f || curl -fsSL -o $$f $(VOICE_URL)/$$f || exit 1; \
-	done
-	cd voices && grep -E ' $(VOICE)\.onnx(\.json)?$$' ../src/radio/voices/SHA256SUMS | sha256sum -c --strict - \
-		|| { rm -f $(VOICE).onnx $(VOICE).onnx.json; exit 1; }
+	cd voices && failed=0; while read -r sum f; do \
+		name=$${f%%.*}; loc=$${name%%-*}; rest=$${name#*-}; \
+		test -f $$f || curl -fsSL -o $$f \
+			$(VOICES_URL)/$${loc%%_*}/$$loc/$${rest%-*}/$${rest##*-}/$$f || exit 1; \
+		echo "$$sum  $$f" | sha256sum -c --strict - || { rm -f $$f; failed=1; }; \
+	done < ../$(SUMS); test $$failed = 0
 
 # Opt in: CI has no model, and a skipped test fails `make check`, so this test lives
 # outside tests/unit/ and runs only here, against TWR_RADIO_VOICE_MODEL.

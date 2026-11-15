@@ -46,9 +46,9 @@ SIGINT or SIGTERM drains the connection and stops it, with exit code 0.
 | `TWR_HEALTH_ADDR` | `:8080` | Where `GET /healthz` listens, `host:port`; an empty host is every interface. |
 | `TWR_LOG_LEVEL` | `info` | The lowest level logged: `debug`, `info`, `warn` or `error`. |
 | `TWR_LOG_FORMAT` | `text` (`json` in the image) | `text` writes logfmt, `json` one object a line. |
-| `TWR_RADIO_VOICE_MODEL` | `voices/en_GB-alba-medium.onnx`, relative to the working directory, where `make voice` puts it from the repository's root (`/app/voices/en_GB-alba-medium.onnx`, baked in, in the image) | The Piper voice, an `.onnx` file with its `.onnx.json` beside it. |
+| `TWR_RADIO_VOICE_MODEL` | unset: the voice `TWR_RADIO_VOICE` names | A Piper voice of your own by path, an `.onnx` file with its `.onnx.json` beside it. It wins over `TWR_RADIO_VOICE`; the image leaves it unset. |
 | `TWR_RADIO_VOICE` | `en_GB-alba-medium` | The Piper voice by name: `<TWR_RADIO_VOICES_DIR>/<name>.onnx`, with its `.onnx.json` beside it. radio knows `en_GB-alba-medium` and `en_GB-northern_english_male-medium`; another name stops it with exit 2. `TWR_RADIO_VOICE_MODEL` wins when both are set. |
-| `TWR_RADIO_VOICES_DIR` | `voices`, relative to the working directory | The directory `TWR_RADIO_VOICE` names its voice in. |
+| `TWR_RADIO_VOICES_DIR` | `voices`, relative to the working directory, where `make voice` puts them from the repository's root (`/app/voices`, baked in, in the image) | The directory `TWR_RADIO_VOICE` names its voice in. |
 | `TWR_RADIO_SRC` | `live` | The source whose callouts radio speaks, `twr.v1.<src>.callout.>`: `live`, or `replay-<run>` for a replay. Letters, digits, `-` and `_`. |
 | `TWR_RADIO_VOICE_FILE` | unset: v1's defaults (`length_scale` 0.9, `noise_scale` 0.5, `noise_w_scale` 0.5, `sentence_pause_secs` 0.35), and v1's script | A v1 rules file: its `voice:` section tunes the voice ([The voice](#the-voice)), and its `script:` and template keys the phrases ([The phrases](#the-phrases)). |
 | `TWR_RADIO_CACHE_DIR` | `twr-radio` under `$XDG_CACHE_HOME`, or `~/.cache` | The sentence cache. radio refuses a directory another user owns. |
@@ -66,17 +66,21 @@ A value radio can't read stops it at start with exit code 2.
 
 ## The voice
 
-radio speaks with Piper and v1's voice, `en_GB-alba-medium`, sentence by
-sentence with a pause between sentences, caching each sentence so a phrase
-said before is not made again (paddock#57). The `wav` and `discord` sinks speak
-with it.
+radio speaks with Piper, by default with v1's voice, `en_GB-alba-medium`,
+sentence by sentence with a pause between sentences, caching each sentence so
+a phrase said before is not made again (paddock#57). The `wav` and `discord`
+sinks speak with it.
 
-The model is never committed. `make voice` fetches it into `voices/` from the
-pinned [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/en/en_GB/alba/medium)
-release and checks both files against [`src/radio/voices/SHA256SUMS`](src/radio/voices/SHA256SUMS),
-v1's sums; the image bakes it in the same way, and radio checks a known voice
-again when it loads it. A voice is picked by name with `TWR_RADIO_VOICE`; a voice of your own is a path in `TWR_RADIO_VOICE_MODEL`;
-radio has no sums for it, so it logs `voice model not checked`.
+radio knows two voices, `en_GB-alba-medium` and
+`en_GB-northern_english_male-medium`, and `TWR_RADIO_VOICE` picks one by name
+(paddock#391). The models are never committed. `make voice` fetches both into
+`voices/` from the pinned
+[rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0)
+release and checks every file against
+[`src/radio/voices/SHA256SUMS`](src/radio/voices/SHA256SUMS); the image bakes
+them in the same way (paddock#392), and radio checks a known voice again when
+it loads it. A voice of your own is a path in `TWR_RADIO_VOICE_MODEL`; radio
+has no sums for it, so it logs `voice model not checked`.
 
 The voice file's `voice:` section takes v1's keys. In v2 the rules belong to
 ecu, but radio reads nothing but the `voice:` section, so a v1 rules file can be
@@ -97,7 +101,9 @@ The tests use a fake voice, so `make check` and CI need no model.
 `TWR_RADIO_VOICE_MODEL` or the one `make voice` fetched; it is not part of
 `make check`.
 
-The voice's attribution (CC BY 4.0) is in [`NOTICE`](NOTICE).
+The voices' attributions (CC BY 4.0 for alba, CC BY-SA 4.0 for
+northern_english_male) are in [`NOTICE`](NOTICE), and their model cards in
+[`licenses/`](licenses).
 
 ## The phrases
 
@@ -325,7 +331,8 @@ the user's cache and checked against its sha256 each time the tests run.
 on every PR by CI's `image / build`, which runs it as its non-root user
 (65532) with a read-only root filesystem, against no NATS and against
 `nats-server -js` ([`scripts/image_smoke.sh`](scripts/image_smoke.sh)). Locally,
-`make image`. It carries the voice, and its speech cache is
+`make image`. It carries both voices under `/app/voices`, picked with
+`TWR_RADIO_VOICE` (alba when unset), and its speech cache is
 `/tmp/.cache/twr-radio`: with the read-only root, mount a tmpfs or a volume on
 `/tmp`.
 
