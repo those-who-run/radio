@@ -222,6 +222,8 @@ async def test_speaks_to_wav_files_with_a_timeline(
     await publish(js, made("fuel", "template_pit", 15, created=later(5)), src="wavs")
     await until(lambda: len(list((tmp_path / "wav").glob("*.wav"))) == 1)
     assert [p.name for p in (tmp_path / "wav").iterdir()] == ["001-final_lap.wav"]
+    # The line is written after the sink has played, so the file can come first.
+    await until(lambda: timeline.exists() and len(timeline.read_text().splitlines()) == 1)
     stop.set()
     await asyncio.wait_for(task, 10)
     [entry] = [json.loads(x) for x in timeline.read_text().splitlines()]
