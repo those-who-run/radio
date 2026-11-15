@@ -64,7 +64,7 @@ pins a behaviour where one applies.
   package's tests alone.
 - `make run`: radio on this machine, against `TWR_NATS_URL`.
 - `make image`: the image, with podman.
-- `make voice`: fetches the Piper voice into `voices/` and checks its sha256;
+- `make voice`: fetches the Piper voices into `voices/` and checks their sha256;
   `make voice-test` runs the synthesiser against it. Neither is in
   `make check`: CI has no model, and the tests use a fake voice.
 - `make hooks`: installs the commit hooks. A new clone or worktree runs it

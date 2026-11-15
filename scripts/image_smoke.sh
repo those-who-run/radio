@@ -38,3 +38,37 @@ wait_for() {
 }
 wait_for 8080 '*"connected": false, "ok": false,*503' '"msg": "nats error"' "$alone"
 wait_for 8081 '*"connected": true, "ok": true,*200' '"msg": "ready"' "$with"
+
+# The voices (paddock#392): each one baked in loads by name, checked against its
+# sums, and speaks: the warm-up sentence leaves a clip in the speech cache, on a
+# tmpfs at /tmp. The simulated timing loads the voice without a sink that needs
+# more than NATS. A name radio doesn't know stops it with exit 2.
+sums=$(dirname "$0")/../src/radio/voices/SHA256SUMS
+for voice in $(awk '$2 ~ /\.onnx$/ { sub(/\.onnx$/, "", $2); print $2 }' "$sums"); do
+  speaks=$(docker run --detach --read-only --tmpfs /tmp --network radio-smoke \
+    --env TWR_NATS_URL=nats://nats:4222 --env TWR_RADIO_TIMING=simulated \
+    --env TWR_RADIO_VOICE="$voice" "$IMAGE")
+  ok=
+  for _ in $(seq 60); do
+    log=$(docker logs "$speaks" 2>&1)
+    if grep -q "\"msg\": \"loading voice\".*/app/voices/$voice.onnx" <<<"$log" \
+      && docker exec "$speaks" sh -c 'ls /tmp/.cache/twr-radio/*.wav' >/dev/null 2>&1; then
+      ok=1
+      break
+    fi
+    sleep 0.5
+  done
+  docker rm --force "$speaks" >/dev/null
+  if [ -z "$ok" ] || grep -q 'voice model not checked' <<<"$log"; then
+    echo "TWR_RADIO_VOICE=$voice did not load /app/voices/$voice.onnx, checked, and speak within 30 s:" >&2
+    echo "$log" >&2
+    exit 1
+  fi
+  echo "voice $voice: loaded and spoke"
+done
+code=0
+docker run --rm --read-only --env TWR_RADIO_VOICE=nobody "$IMAGE" || code=$?
+if [ "$code" != 2 ]; then
+  echo "TWR_RADIO_VOICE=nobody exited $code, not 2" >&2
+  exit 1
+fi

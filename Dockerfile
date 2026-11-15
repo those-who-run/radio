@@ -6,23 +6,27 @@
 # index (the tag beside it is for people); Renovate bumps the tag and the digest
 # together.
 #
-# Piper's voice, v1's en_GB-alba-medium, is baked in (paddock#57 R6): fetched from
-# the pinned rhasspy/piper-voices release in a stage of its own and checked against
-# src/radio/voices/SHA256SUMS, as v1's Dockerfile does and `make voice` does locally.
-# radio checks it again when it loads it. The speech cache goes to
+# Piper's voices are baked in (paddock#57 R6, paddock#392): every voice named in
+# src/radio/voices/SHA256SUMS, v1's en_GB-alba-medium and
+# en_GB-northern_english_male-medium, fetched from the pinned rhasspy/piper-voices
+# release in a stage of its own and checked against those sums, as `make voice` does
+# locally. radio checks a voice again when it loads it. A deployment picks one by
+# name with TWR_RADIO_VOICE; with none set radio speaks with alba. The image sets
+# no TWR_RADIO_VOICE_MODEL, since a path would win over the name. The speech cache goes to
 # $XDG_CACHE_HOME/twr-radio, /tmp/.cache here: with a read-only root, /tmp is a
 # tmpfs or a volume the deployment mounts, never a shared data volume.
 
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
 FROM docker.io/library/python:3.14.10-slim-trixie@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999 AS voice
-ARG VOICE=en_GB-alba-medium
-ARG VOICE_URL=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alba/medium
+ARG VOICES_URL=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0
 WORKDIR /voices
 COPY src/radio/voices/SHA256SUMS /SHA256SUMS
-RUN python -c "import sys, urllib.request as u; [u.urlretrieve(f'{sys.argv[1]}/{n}', n) for n in sys.argv[2:]]" \
-        "${VOICE_URL}" "${VOICE}.onnx" "${VOICE}.onnx.json" \
-    && grep -E " ${VOICE}\.onnx(\.json)?$" /SHA256SUMS | sha256sum -c --strict -
+# A voice's folder in the release follows from its name: en_GB-alba-medium is
+# en/en_GB/alba/medium (language, locale, speaker, quality).
+RUN python -c "import sys, urllib.request as u; [u.urlretrieve('/'.join((sys.argv[1], loc[:2], loc, speaker, quality, f)), f) for f in (line.split()[1] for line in open('/SHA256SUMS')) for loc, speaker, quality in [f.split('.')[0].split('-')]]" \
+        "${VOICES_URL}" \
+    && sha256sum -c --strict /SHA256SUMS
 
 FROM docker.io/library/python:3.14.10-slim-trixie@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999 AS build
 # Bytecode compiled now, since the running image can't write it; the image's own
@@ -62,7 +66,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TWR_LOG_FORMAT=json \
-    TWR_RADIO_VOICE_MODEL=/app/voices/en_GB-alba-medium.onnx \
+    TWR_RADIO_VOICES_DIR=/app/voices \
     XDG_CACHE_HOME=/tmp/.cache
 # By number, so a runtime can check it isn't root; the same user as the Go images.
 USER 65532:65532
