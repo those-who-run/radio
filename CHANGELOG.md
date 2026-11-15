@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.7](https://github.com/those-who-run/radio/compare/v0.1.6...v0.1.7) (2026-11-15)
+
+
+### Features
+
+* **image:** bake both voices into the image ([#43](https://github.com/those-who-run/radio/issues/43)) ([af95bba](https://github.com/those-who-run/radio/commit/af95bbaeb80021bff3d953b330bd459bac92c2b2))
+* **radio:** pick the voice by name with TWR_RADIO_VOICE ([#41](https://github.com/those-who-run/radio/issues/41)) ([7e85721](https://github.com/those-who-run/radio/commit/7e85721eb2ba439ad9c3377b249168227e0d7056))
+
 ## [0.1.6](https://github.com/those-who-run/radio/compare/v0.1.5...v0.1.6) (2026-10-31)
 
 
